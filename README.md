@@ -12,7 +12,6 @@ On Grimfall every character is flagged as `DRUID` regardless of the abilities th
 
 - **Always-on Death Knight runes.** The rune bar is built for every character with no class detection (since the server reports everyone as `DRUID`). It defaults to the top of the Player unit frame and shows the 6-rune resource.
 - **Dedicated "Death Knight Runes" config section** under *Unit Frames → Player*, with enable, height, fill style (spaced/filled), spacing, detach/move, width, orientation and strata options. Rune colors live under *Unit Frames → General → Colors → Class Resource*.
-- **Ebonhold removed.** The Ebonhold addon skinning module, its options panel, settings, locale strings and the Ebonhold step in the install wizard have been fully purged. The install wizard is now 8 pages.
 - Version string and TOC notes mark the build as the Grimfall fork.
 
 ## Included addons
