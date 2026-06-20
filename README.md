@@ -1,5 +1,9 @@
 # ElvUI-Grimfall
 
+<p align="center">
+  <img width="412" height="219" alt="ElvUI-Grimfall" src="https://github.com/user-attachments/assets/f9932e7d-d127-43a7-aa8c-f204098271d3" />
+</p>
+
 A fork of **ElvUI (WotLK 3.3.5a)** customized for the classless private server **Grimfall WoW**.
 
 On Grimfall every character is flagged as `DRUID` regardless of the abilities they use, which breaks ElvUI's class-based features. This fork adapts ElvUI to that environment.
