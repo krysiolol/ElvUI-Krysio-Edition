@@ -25,3 +25,8 @@ Clone or download into your WoW `Interface\AddOns` directory so each `ElvUI*` fo
 ## Credits
 
 Based on ElvUI by Elv, Bunny and the ElvUI-WotLK community. This fork only adds the Grimfall-specific changes described above.
+
+
+---
+
+_Updated for the classless Grimfall WoW server by **Valdstein**, with the assistance of AI._
