@@ -109,7 +109,6 @@ function AB:HandleMicroButton(button)
 	button:HookScript("OnEnter", onEnter)
 	button:HookScript("OnLeave", onLeave)
 	button:SetHitRectInsets(0, 0, 0, 0)
-	button:Show()
 
 	if pushed then
 		pushed:SetTexCoord(0.17, 0.87, 0.5, 0.908)
@@ -130,6 +129,68 @@ function AB:HandleMicroButton(button)
 	button.isSkinned = true
 end
 
+function AB:DiscoverExtraMicroButtons()
+	-- Grimfall: adopt server-added micro buttons (e.g. the backported Collections button,
+	-- which uses a mount icon and belongs by Social / Group Finder) and, if only the journal
+	-- frame exists, build a button that opens it.
+	if self.extraMicroButtonsDone then return end
+
+	local function indexOf(name)
+		for i = 1, #MICRO_BUTTONS do
+			if MICRO_BUTTONS[i] == name then return i end
+		end
+	end
+
+	local function addButton(name, afterName)
+		if indexOf(name) then return end
+		local pos = afterName and indexOf(afterName)
+		if pos then
+			tinsert(MICRO_BUTTONS, pos + 1, name)
+		else
+			tinsert(MICRO_BUTTONS, name)
+		end
+	end
+
+	for name, obj in pairs(_G) do
+		if type(name) == "string" and strfind(name, "MicroButton$") and type(obj) == "table"
+			and obj.IsObjectType and obj:IsObjectType("Button") and not indexOf(name) then
+			if strfind(strlower(name), "collection") then
+				addButton(name, "SocialsMicroButton")
+			else
+				addButton(name)
+			end
+		end
+	end
+
+	local hasCollections
+	for i = 1, #MICRO_BUTTONS do
+		if strfind(strlower(MICRO_BUTTONS[i]), "collection") then hasCollections = true break end
+	end
+
+	if not hasCollections and _G.Retail_CollectionJournal and not _G.ElvUI_CollectionsMicroButton then
+		local b = CreateFrame("Button", "ElvUI_CollectionsMicroButton", ElvUI_Ebonhold_MicroBar)
+		b:SetSize(28, 58)
+		local icon = b:CreateTexture(nil, "ARTWORK")
+		icon:SetTexture([[Interface\Icons\Ability_Mount_RidingHorse]])
+		icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+		icon:SetPoint("TOPLEFT", b, "TOPLEFT", 2, -2)
+		icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 2)
+		b.icon = icon
+		b:SetScript("OnClick", function()
+			if type(_G.ToggleCollectionsJournal) == "function" then
+				_G.ToggleCollectionsJournal()
+			else
+				local j = _G.Retail_CollectionJournal
+				if j then if j:IsShown() then j:Hide() else j:Show() end end
+			end
+		end)
+		addButton("ElvUI_CollectionsMicroButton", "SocialsMicroButton")
+		hasCollections = true
+	end
+
+	if hasCollections then self.extraMicroButtonsDone = true end
+end
+
 function AB:UpdateMicroButtonsParent()
 	if not ElvUI_Ebonhold_MicroBar then return end
 
@@ -138,6 +199,8 @@ function AB:UpdateMicroButtonsParent()
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 		return
 	end
+
+	self:DiscoverExtraMicroButtons()
 
 	for i = 1, #MICRO_BUTTONS do
 		local button = _G[MICRO_BUTTONS[i]]
@@ -214,7 +277,7 @@ function AB:UpdateMicroPositionDimensions()
 				self:HandleMicroButton(button)
 			end
 			
-			buttons[#buttons + 1] = button
+			if button:IsShown() then buttons[#buttons + 1] = button end
 		end
 	end
 
