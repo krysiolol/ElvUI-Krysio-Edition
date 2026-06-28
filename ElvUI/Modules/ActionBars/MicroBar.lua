@@ -188,6 +188,35 @@ function AB:DiscoverExtraMicroButtons()
 		hasCollections = true
 	end
 
+	if not _G.ElvUI_ClasslessMicroButton then
+		-- Grimfall: button to toggle the Classless build frame (uses the Destiny's Dice icon)
+		local b = CreateFrame("Button", "ElvUI_ClasslessMicroButton", ElvUI_Ebonhold_MicroBar)
+		b:SetSize(28, 58)
+		local icon = b:CreateTexture(nil, "ARTWORK")
+		icon:SetTexture((select(10, GetItemInfo("Destiny's Dice")) or select(10, GetItemInfo("Destiny’s Dice"))) or [[Interface\Icons\INV_Misc_Dice_01]])
+		icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+		icon:SetPoint("TOPLEFT", b, "TOPLEFT", 2, -2)
+		icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 2)
+		b.icon = icon
+		b:SetScript("OnClick", function()
+			if type(_G.ClasslessFrame_Toggle) == "function" then
+				_G.ClasslessFrame_Toggle()
+			end
+		end)
+		b:HookScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText("Classless")
+			GameTooltip:Show()
+		end)
+		b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+		-- pick up the real (green) Destiny’s Dice icon once item info caches
+		b:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+		b:SetScript("OnEvent", function(self)
+			local tex = select(10, GetItemInfo("Destiny's Dice")) or select(10, GetItemInfo("Destiny’s Dice"))
+			if tex then self.icon:SetTexture(tex) self:UnregisterEvent("GET_ITEM_INFO_RECEIVED") end
+		end)
+		addButton("ElvUI_ClasslessMicroButton", "TalentMicroButton")
+	end
 	if hasCollections then self.extraMicroButtonsDone = true end
 end
 

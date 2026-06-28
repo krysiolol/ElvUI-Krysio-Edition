@@ -427,6 +427,60 @@ local function BuildABConfig()
 			}
 		}
 	end
+	group.totems = {
+		order = 6,
+		type = "group",
+		name = L["Class Totems"],
+		get = function(info) return E.db.general.totems[info[#info]] end,
+		set = function(info, value) E.db.general.totems[info[#info]] = value E:GetModule("Totems"):PositionAndSize() end,
+		args = {
+			header = {
+				order = 1,
+				type = "header",
+				name = TUTORIAL_TITLE47
+			},
+			enable = {
+				order = 2,
+				type = "toggle",
+				name = L["Enable"],
+				set = function(info, value) E.db.general.totems[info[#info]] = value E:GetModule("Totems"):ToggleEnable() end
+			},
+			size = {
+				order = 3,
+				type = "range",
+				name = L["Button Size"],
+				min = 24, max = 60, step = 1,
+				disabled = function() return not E.db.general.totems.enable end
+			},
+			spacing = {
+				order = 4,
+				type = "range",
+				name = L["Button Spacing"],
+				min = 1, max = 10, step = 1,
+				disabled = function() return not E.db.general.totems.enable end
+			},
+			sortDirection = {
+				order = 5,
+				type = "select",
+				name = L["Sort Direction"],
+				values = {
+					["ASCENDING"] = L["Ascending"],
+					["DESCENDING"] = L["Descending"]
+				},
+				disabled = function() return not E.db.general.totems.enable end
+			},
+			growthDirection = {
+				order = 6,
+				type = "select",
+				name = L["Bar Direction"],
+				values = {
+					["VERTICAL"] = L["Vertical"],
+					["HORIZONTAL"] = L["Horizontal"]
+				},
+				disabled = function() return not E.db.general.totems.enable end
+			}
+		}
+	}
 	group.barPet = {
 		order = 3,
 		type = "group",
@@ -782,7 +836,7 @@ local function BuildABConfig()
 				type = "range",
 				name = L["Buttons Per Row"],
 				desc = L["The amount of buttons to display per row."],
-				min = 1, max = 11, step = 1,
+				min = 1, max = 12, step = 1,
 				disabled = function() return not E.db.actionbar.microbar.enabled end
 			},
 			alpha = {
