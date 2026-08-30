@@ -31,6 +31,23 @@ P.general = {
 	backdropfadecolor = {r = 0.06, g = 0.06, b = 0.06, a = 0.8},
 	valuecolor = {r = 0.99, g = 0.48, b = 0.17},
 	cropIcon = 2,
+	-- PR1: misc-lootroll BEGIN
+	lootRoll = {
+		width = 328,
+		height = 28,
+		font = "PT Sans Narrow",
+		fontSize = 12,
+		fontOutline = "OUTLINE",
+		transparency = 0.8,
+		useQualityColor = true,
+		bgColor = {r = 0.06, g = 0.06, b = 0.06},
+		rollCountFont = "Homespun",
+		rollCountFontSize = 10,
+		rollCountFontOutline = "MONOCHROMEOUTLINE",
+		rollCountXOffset = 0,
+		rollCountYOffset = 0,
+	},
+	-- PR1: misc-lootroll END
 	minimap = {
 		size = 176,
 		locationText = "MOUSEOVER",

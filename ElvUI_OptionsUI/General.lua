@@ -612,6 +612,123 @@ E.Options.args.general = {
 						E:StaticPopup_Show("PRIVATE_RL")
 					end
 				},
+				-- PR1: misc-lootroll BEGIN
+				lootRollGroup = {
+					order = 3.5,
+					type = "group",
+					name = L["Loot Roll Options"],
+					guiInline = true,
+					disabled = function() return not E.private.general.lootRoll end,
+					get = function(info) return E.db.general.lootRoll[info[#info]] end,
+					set = function(info, value)
+						E.db.general.lootRoll[info[#info]] = value
+						Misc:UpdateLootRoll()
+					end,
+					args = {
+						width = {
+							order = 1,
+							type = "range",
+							name = L["Width"],
+							min = 200, max = 500, step = 1,
+						},
+						height = {
+							order = 2,
+							type = "range",
+							name = L["Height"],
+							min = 18, max = 50, step = 1,
+						},
+						font = {
+							order = 3,
+							type = "select",
+							dialogControl = "LSM30_Font",
+							name = L["Font"],
+							values = AceGUIWidgetLSMlists.font,
+						},
+						fontSize = {
+							order = 4,
+							type = "range",
+							name = L["Font Size"],
+							min = 6, max = 32, step = 1,
+						},
+						fontOutline = {
+							order = 5,
+							type = "select",
+							name = L["Font Outline"],
+							values = C.Values.FontFlags,
+						},
+						rollCountFont = {
+							order = 5.1,
+							type = "select",
+							dialogControl = "LSM30_Font",
+							name = L["Count Font"],
+							desc = L["Font for the roll count number on roll buttons."],
+							values = AceGUIWidgetLSMlists.font,
+							get = function(info) return E.db.general.lootRoll.rollCountFont or "Homespun" end,
+						},
+						rollCountFontSize = {
+							order = 5.2,
+							type = "range",
+							name = L["Count Font Size"],
+							min = 6, max = 32, step = 1,
+							get = function(info) return E.db.general.lootRoll.rollCountFontSize or 10 end,
+						},
+						rollCountFontOutline = {
+							order = 5.3,
+							type = "select",
+							name = L["Count Font Outline"],
+							values = C.Values.FontFlags,
+							get = function(info) return E.db.general.lootRoll.rollCountFontOutline or "MONOCHROMEOUTLINE" end,
+						},
+						rollCountXOffset = {
+							order = 5.4,
+							type = "range",
+							name = L["Count X Offset"],
+							min = -20, max = 20, step = 1,
+							get = function(info) return E.db.general.lootRoll.rollCountXOffset or 0 end,
+						},
+						rollCountYOffset = {
+							order = 5.5,
+							type = "range",
+							name = L["Count Y Offset"],
+							min = -20, max = 20, step = 1,
+							get = function(info) return E.db.general.lootRoll.rollCountYOffset or 0 end,
+						},
+						transparency = {
+							order = 6,
+							type = "range",
+							name = L["Transparency"],
+							min = 0, max = 1, step = 0.05,
+							isPercent = true,
+						},
+						useQualityColor = {
+							order = 7,
+							type = "toggle",
+							name = L["Quality Color Background"],
+							desc = L["Color the loot roll frame background based on the quality of the item."],
+						},
+						bgColor = {
+							order = 8,
+							type = "color",
+							name = L["Background Color"],
+							disabled = function() return E.db.general.lootRoll.useQualityColor end,
+							get = function(info)
+								local c = E.db.general.lootRoll.bgColor or {r = 0.06, g = 0.06, b = 0.06}
+								return c.r, c.g, c.b
+							end,
+							set = function(info, r, g, b)
+								E.db.general.lootRoll.bgColor = {r = r, g = g, b = b}
+								Misc:UpdateLootRoll()
+							end,
+						},
+						testRoll = {
+							order = 9,
+							type = "execute",
+							name = L["Preview Loot Roll"],
+							func = function() Misc:TestLootRoll() end,
+						},
+					},
+				},
+				-- PR1: misc-lootroll END
 				hideErrorFrame = {
 					order = 4,
 					type = "toggle",
