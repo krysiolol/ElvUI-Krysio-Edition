@@ -138,6 +138,12 @@ E.Options.args.chat = {
 						end
 					end
 				},
+				multiChannelDeduplicate = {
+					order = 12.1,
+					type = "toggle",
+					name = L["Prevent Multi-Channel Spam"],
+					desc = L["When a player posts the same message across multiple public channels (e.g. /1, /2, /4) at the same time, only display it once in the first channel."],
+				},
 				scrollDownInterval = {
 					order = 13,
 					type = "range",
