@@ -12,6 +12,7 @@ local floor = math.floor
 local format = string.format
 local gmatch = gmatch
 local gsub = gsub
+local wipe = wipe
 local match = string.match
 local utf8lower = string.utf8lower
 local utf8sub = string.utf8sub
@@ -408,7 +409,21 @@ ElvUF.Tags.Methods["threatcolor"] = function(unit)
 	end
 end
 
+-- PR5 perf: the GUID-keyed status cache below would otherwise accumulate one
+-- entry per distinct player ever seen AFK/DND/dead/offline for the whole
+-- session. Wipe it whenever the group roster changes so the table stays bounded.
+local statusWipeTables = {}
+local statusWipeFrame = CreateFrame("Frame")
+statusWipeFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+statusWipeFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+statusWipeFrame:SetScript("OnEvent", function()
+	for i = 1, #statusWipeTables do
+		wipe(statusWipeTables[i])
+	end
+end)
+
 local unitStatus = {}
+statusWipeTables[#statusWipeTables + 1] = unitStatus
 ElvUF.Tags.OnUpdateThrottle["statustimer"] = 1
 ElvUF.Tags.Methods["statustimer"] = function(unit)
 	if not UnitIsPlayer(unit) then return end
