@@ -95,7 +95,10 @@ function UF:Construct_HealComm(frame)
 		-- Create boundary separator line
 		local separator = sBar:CreateTexture(nil, "OVERLAY")
 		separator:SetWidth(Settings.SeparatorWidth)
-		separator:SetColorTexture(Settings.SeparatorColor.r, Settings.SeparatorColor.g, Settings.SeparatorColor.b, Settings.SeparatorColor.a)
+		-- 3.3.5a compatibility: SetColorTexture does not exist on this client
+		-- (it was added in 4.0); use the classic white-texture + vertex color.
+		separator:SetTexture("Interface\\Buttons\\WHITE8x8")
+		separator:SetVertexColor(Settings.SeparatorColor.r, Settings.SeparatorColor.g, Settings.SeparatorColor.b, Settings.SeparatorColor.a)
 		sBar.separator = separator
 
 		-- Create absorb value text overlay
@@ -565,7 +568,8 @@ function UF:UpdateHealComm(unit, myIncomingHeal, allIncomingHeal, absorb)
 		-- Set Separator
 		if bar.separator then
 			bar.separator:SetWidth(absorbSeparatorWidth)
-			bar.separator:SetColorTexture(Settings.SeparatorColor.r, Settings.SeparatorColor.g, Settings.SeparatorColor.b, absorbSeparatorAlpha)
+			bar.separator:SetTexture("Interface\\Buttons\\WHITE8x8")
+			bar.separator:SetVertexColor(Settings.SeparatorColor.r, Settings.SeparatorColor.g, Settings.SeparatorColor.b, absorbSeparatorAlpha)
 		end
 
 		bar:ClearAllPoints()
