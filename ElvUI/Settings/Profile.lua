@@ -4324,6 +4324,33 @@ P.unitframe = {
 	}
 }
 
+-- PR3: unitframe-threat BEGIN
+do
+	local function newThreatDefaults()
+		return {
+			enable = false,
+			position = "BOTTOMRIGHT",
+			size = 12,
+			xOffset = 0,
+			yOffset = 0,
+			attachTo = "Health",
+			texture = "ElvUI Blank",
+			font = "Homespun",
+			fontSize = 10,
+			fontOutline = "MONOCHROMEOUTLINE",
+			textColor = { r = 1, g = 1, b = 1, a = 1 }
+		}
+	end
+
+	local units = P.unitframe.units
+	if units and units.player then units.player.threat = newThreatDefaults() end
+	if units and units.target then units.target.threat = newThreatDefaults() end
+	if units and units.party then units.party.threat = newThreatDefaults() end
+	if units and units.raid then units.raid.threat = newThreatDefaults() end
+	if units and units.boss then units.boss.threat = newThreatDefaults() end
+end
+-- PR3: unitframe-threat END
+
 --Cooldown
 P.cooldown = {
 	enable = true,
