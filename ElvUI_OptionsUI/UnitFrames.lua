@@ -961,6 +961,60 @@ local function GetOptionsTable_Power(hasDetatchOption, updateFunc, groupName, nu
 				desc = L["Offset position for text."],
 				min = -300, max = 300, step = 1
 			},
+			customColorGroup = {
+				order = 12,
+				type = "group",
+				name = L["Custom Color"],
+				guiInline = true,
+				get = function(info)
+					local c = E.db.unitframe.units[groupName].power.customColor
+					if not c then
+						c = { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+						E.db.unitframe.units[groupName].power.customColor = c
+					end
+					return c[info[#info]]
+				end,
+				set = function(info, value)
+					local c = E.db.unitframe.units[groupName].power.customColor
+					if not c then
+						c = { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+						E.db.unitframe.units[groupName].power.customColor = c
+					end
+					c[info[#info]] = value
+					updateFunc(UF, groupName, numUnits)
+				end,
+				args = {
+					enable = {
+						order = 1,
+						type = "toggle",
+						name = L["Enable Custom Color"],
+						desc = L["Enable custom power bar color for this unitframe."],
+					},
+					color = {
+						order = 2,
+						type = "color",
+						name = L["COLOR"],
+						disabled = function()
+							local c = E.db.unitframe.units[groupName].power.customColor
+							return not (c and c.enable)
+						end,
+						get = function(info)
+							local c = E.db.unitframe.units[groupName].power.customColor
+							if not c or not c.color then return 0.2, 0.6, 1 end
+							return c.color.r, c.color.g, c.color.b
+						end,
+						set = function(info, r, g, b)
+							local c = E.db.unitframe.units[groupName].power.customColor
+							if not c then
+								c = { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+								E.db.unitframe.units[groupName].power.customColor = c
+							end
+							c.color = { r = r, g = g, b = b }
+							updateFunc(UF, groupName, numUnits)
+						end,
+					},
+				},
+			},
 			attachTextTo = {
 				order = 10,
 				type = "select",

@@ -126,7 +126,13 @@ function UF:Configure_Power(frame)
 		power.colorReaction = nil
 		power.colorPower = nil
 
-		if self.db.colors.powerclass then
+		if db.power and db.power.customColor and db.power.customColor.enable and db.power.customColor.color then
+			local c = db.power.customColor.color
+			power:SetStatusBarColor(c.r, c.g, c.b)
+			if power.BG then
+				UF:UpdateBackdropTextureColor(power.BG, c.r, c.g, c.b)
+			end
+		elseif self.db.colors.powerclass then
 			power.colorClass = true
 			power.colorReaction = true
 		else
@@ -271,21 +277,28 @@ function UF:PostUpdatePower(unit)
 	end
 end
 
-function UF:PostUpdatePower(unit)
+function UF:PostUpdatePowerColor()
 	local parent = self.origParent or self:GetParent()
+
+	if parent and parent.db and parent.db.power and parent.db.power.customColor and parent.db.power.customColor.enable and parent.db.power.customColor.color then
+		local c = parent.db.power.customColor.color
+		self:SetStatusBarColor(c.r, c.g, c.b)
+		if self.BG then
+			UF:UpdateBackdropTextureColor(self.BG, c.r, c.g, c.b)
+		end
+		return
+	end
+
 	if parent.isForced then
+		local color = ElvUF.colors.power[tokens[random(0, 4)]]
 		self:SetValue(random(1, self.max))
-	end
 
-	local hideDuplicate = IsDuplicateTrackedPower(parent, unit)
-	SetDuplicatePowerAlpha(self, hideDuplicate)
+		if not self.colorClass then
+			self:SetStatusBarColor(color[1], color[2], color[3])
 
-	if parent.db and parent.db.power and parent.db.power.hideonnpc then
-		UF:PostNamePosition(parent, unit)
-	end
-
-	--Force update to AdditionalPower in order to reposition text if necessary
-	if parent:IsElementEnabled("AdditionalPower") then
-		E:Delay(0.01, parent.AdditionalPower.ForceUpdate, parent.AdditionalPower) --Delay it slightly so Power text has a chance to clear itself first
+			if self.BG then
+				UF:UpdateBackdropTextureColor(self.BG, color[1], color[2], color[3])
+			end
+		end
 	end
 end
