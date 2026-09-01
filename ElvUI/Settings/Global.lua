@@ -38,6 +38,15 @@ G.nameplates = {}
 G.unitframe = {
 	aurafilters = {},
 	buffwatch = {},
+	-- Absorb engine: tooltip discovery of unknown shields, per group size.
+	-- Discovery is OFF in raids by default because tooltip scanning is expensive at raid scale.
+	absorbDiscoverySolo = true,
+	absorbDiscoveryParty = true,
+	absorbDiscoveryRaid = false,
+	-- Stock 3.3.5a UnitGetTotalAbsorbs may return nil. Set to false so the
+	-- engine always falls back to buff scanning. Turn ON only after verifying
+	-- the native API returns correct values on your realm (/eabsorb).
+	absorbTrustNative = false,
 	raidDebuffIndicator = {
 		instanceFilter = "RaidDebuffs",
 		otherFilter = "CCDebuffs",

@@ -601,6 +601,34 @@ G.unitframe.AuraBarColors = {
 	[SpellName(32182)] = {r = 0.98, g = 0.57, b = 0.10},	-- Heroism
 }
 
+-- Damage absorb shields recognized by the absorb engine (Core/AbsorbEngine.lua).
+-- Editable in Filters config; the Recent Auras Tracker makes adding new shields easy.
+-- Name keys are used because Ascension spell IDs vary between reworks.
+G.unitframe.aurafilters["Absorb Shields"] = {
+	type = "Whitelist",
+	spells = {
+		["Power Word: Shield"] = Defaults(),
+		["Void Shield"] = Defaults(),
+		["Forbidden Ritual"] = Defaults(),
+		["Hateforged Barrier"] = Defaults(),
+		["Phoenix Shield"] = Defaults(),
+		["Sacred Shield"] = Defaults(),
+		["Ice Barrier"] = Defaults(),
+		["Mana Shield"] = Defaults(),
+		["Anti-Magic Shell"] = Defaults(),
+		["Savage Defense"] = Defaults(),
+		["Divine Aegis"] = Defaults(),
+		["Blood Shield"] = Defaults(),
+		["Protection"] = Defaults(),
+		["Illuminated Healing"] = Defaults(),
+		["Guard"] = Defaults(),
+		["Fire Ward"] = Defaults(),
+		["Frost Ward"] = Defaults(),
+		["Shadow Ward"] = Defaults(),
+		["Arcane Barrier"] = Defaults(),
+	},
+}
+
 G.unitframe.DebuffHighlightColors = {
 	[25771] = {enable = false, style = "FILL", color = {r = 0.85, g = 0, b = 0, a = 0.85}}, -- Forbearance
 }
