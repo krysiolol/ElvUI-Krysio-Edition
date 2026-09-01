@@ -4351,6 +4351,21 @@ do
 end
 -- PR3: unitframe-threat END
 
+-- PR4: unitframe-power BEGIN
+do
+	local function newCustomColorDefaults()
+		return { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+	end
+
+	local units = P.unitframe.units
+	if units and units.player and units.player.power then units.player.power.customColor = newCustomColorDefaults() end
+	if units and units.target and units.target.power then units.target.power.customColor = newCustomColorDefaults() end
+	if units and units.party and units.party.power then units.party.power.customColor = newCustomColorDefaults() end
+	if units and units.raid and units.raid.power then units.raid.power.customColor = newCustomColorDefaults() end
+	if units and units.boss and units.boss.power then units.boss.power.customColor = newCustomColorDefaults() end
+end
+-- PR4: unitframe-power END
+
 --Cooldown
 P.cooldown = {
 	enable = true,
