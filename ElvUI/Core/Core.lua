@@ -35,7 +35,7 @@ local _G = _G
 local tonumber, pairs, ipairs, error, unpack, select, tostring = tonumber, pairs, ipairs, error, unpack, select, tostring
 local assert, type, print = assert, type, print
 local twipe, tinsert, tremove, next = table.wipe, tinsert, tremove, next
-local format, find, match, strrep, strlen, sub, gsub, strjoin = string.format, string.find, string.match, strrep, strlen, string.sub, string.gsub, strjoin
+local format, find, match, strrep, strlen, sub, gsub, strjoin, strupper = string.format, string.find, string.match, strrep, strlen, string.sub, string.gsub, strjoin, string.upper
 --WoW API / Variables
 local CreateFrame = CreateFrame
 local GetAddOnInfo = GetAddOnInfo
@@ -47,6 +47,7 @@ local IsInGuild = IsInGuild
 local IsInInstance = IsInInstance
 local SendAddonMessage = SendAddonMessage
 local UnitGUID = UnitGUID
+local GetTime = GetTime
 local ERR_NOT_IN_COMBAT = ERR_NOT_IN_COMBAT
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 
@@ -1257,6 +1258,22 @@ function E:DBConversions()
 		end
 	end
 
+	do -- roleSort 3-role normalization
+		-- Normalize legacy profile role order strings down to the 3-role set:
+		-- strip "SUPPORT" (and the commas it leaves behind) and normalize
+		-- "DPS" -> "DAMAGER". Idempotent: on a fresh install the defaults
+		-- already contain no SUPPORT and the gsubs are no-ops.
+		local function normalizeOrder(s)
+			s = strupper(s or ""):gsub("%s+", ""):gsub("DPS", "DAMAGER")
+			s = s:gsub("SUPPORT,", ""):gsub(",SUPPORT", ""):gsub("SUPPORT", "")
+			if s == "" then s = "TANK,HEALER,DAMAGER,NONE" end
+			return s
+		end
+		E.db.unitframe.roleSortOrderParty = normalizeOrder(E.db.unitframe.roleSortOrderParty)
+		E.db.unitframe.roleSortOrderRaid = normalizeOrder(E.db.unitframe.roleSortOrderRaid)
+		if E:WipeUnitRoleCache then E:WipeUnitRoleCache() end
+	end
+
 end
 
 function E:RefreshModulesDB()
@@ -1325,4 +1342,81 @@ function E:Initialize()
 	if GetCVar("scriptProfile") ~= "1" then
 		collectgarbage("collect")
 	end
+end
+
+--[[
+	Effective group role: thin 3-role wrapper over UnitGroupRolesAssigned
+	(TANK / HEALER / DAMAGER / NONE). This is the single source of truth for
+	role icons and role sorting; it is class-flag immune, so it works on
+	Grimfall classless servers where every character reports UnitClass=DRUID.
+
+	Unlike the CoA fork, there is NO SUPPORT role and no spec/SpecCache
+	lookup here. Group members are never inspected; E:GetPlayerRole in
+	Core/API.lua remains the local-player-only talent fallback.
+]]
+local function GetUnitRealRole(unit)
+	local r1, r2, r3 = UnitGroupRolesAssigned(unit)
+	local isTank, isHealer, isDamage
+	-- Some addons/servers return a single role string instead of booleans
+	if type(r1) == "string" then
+		isTank = (r1 == "TANK")
+		isHealer = (r1 == "HEALER")
+		isDamage = (r1 == "DAMAGER" or r1 == "DPS")
+	else
+		isTank, isHealer, isDamage = r1, r2, r3
+	end
+	if isTank then
+		return "TANK"
+	elseif isHealer then
+		return "HEALER"
+	elseif isDamage then
+		return "DAMAGER"
+	end
+	return "NONE"
+end
+
+-- Effective-role cache: role checks run from role sorting, role icons and
+-- possibly nameplate style filters. Wiped on a short TTL and by role/roster
+-- events (RoleSort driver and the wipe frame below).
+local unitRoleCache = {}
+local unitRoleCacheTime = 0
+local ROLE_CACHE_TTL = 3
+
+function E:WipeUnitRoleCache()
+	if next(unitRoleCache) then
+		twipe(unitRoleCache)
+	end
+	unitRoleCacheTime = GetTime()
+end
+
+local roleWipeEventsFrame = CreateFrame("Frame")
+roleWipeEventsFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED")
+roleWipeEventsFrame:RegisterEvent("LFG_ROLE_UPDATE")
+roleWipeEventsFrame:RegisterEvent("ROLE_CHANGED_INFORM")
+roleWipeEventsFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+roleWipeEventsFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+roleWipeEventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+roleWipeEventsFrame:SetScript("OnEvent", function()
+	E:WipeUnitRoleCache()
+end)
+
+function E:GetUnitRole(unit)
+	if not unit then return "NONE" end
+
+	local now = GetTime()
+	if (now - unitRoleCacheTime) > ROLE_CACHE_TTL then
+		E:WipeUnitRoleCache()
+	end
+
+	local guid = UnitGUID(unit)
+	if not guid then
+		return GetUnitRealRole(unit)
+	end
+
+	local role = unitRoleCache[guid]
+	if not role then
+		role = GetUnitRealRole(unit) or "NONE"
+		unitRoleCache[guid] = role
+	end
+	return role
 end

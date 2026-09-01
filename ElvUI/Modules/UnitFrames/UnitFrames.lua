@@ -86,6 +86,9 @@ UF.headerGroupBy = {
 		header:SetAttribute("groupBy", nil)
 		header:SetAttribute("filterOnPet", true) --This is the line that matters. Without this, it sorts based on the owners name
 	end,
+	["ASSIGNEDROLE"] = function(header)
+		UF:ConfigureRoleSortHeader(header)
+	end,
 }
 
 local POINT_COLUMN_ANCHOR_TO_DIRECTION = {
@@ -607,6 +610,19 @@ function UF.groupPrototype:Configure_Groups(frame)
 			if not group.isForced then
 				group:SetAttribute("maxColumns", db.raidWideSorting and numGroups or 1)
 				group:SetAttribute("unitsPerColumn", db.raidWideSorting and (db.groupsPerRowCol * 5) or 5)
+				if db.groupBy == "ASSIGNEDROLE" then
+					-- RoleSort needs to know which subgroup this header shows (0 = whole raid)
+					group.roleSortGroupIndex = (db.raidWideSorting and 0) or i
+					group.roleSortShowPlayer = db.showPlayer
+				else
+					group.roleSortGroupIndex = nil
+					if UF.roleSortHeaders then
+						UF.roleSortHeaders[group] = nil
+					end
+					if group:GetAttribute("nameList") ~= nil then
+						group:SetAttribute("nameList", nil)
+					end
+				end
 				if UF.headerGroupBy[db.groupBy] then
 					UF.headerGroupBy[db.groupBy](group)
 				else
