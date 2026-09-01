@@ -901,6 +901,33 @@ function B:UpdateAll()
 	if B.BankFrame then B:Layout(true) end
 end
 
+-- PR5 perf: coalesce bursty BAG_UPDATE events into a single deferred refresh.
+-- Multiple BAG_UPDATEs within 0.1s only schedule one flush, so the full slot
+-- update runs once instead of once-per-event.
+function B:FlushDeferredBagUpdate(frame)
+	if not frame.bagUpdateDeferred then
+		frame.bagUpdateDeferred = E:ScheduleTimer(function()
+			frame.bagUpdateDeferred = nil
+
+			for _, bagID in ipairs(frame.BagIDs) do
+				local numSlots = GetContainerNumSlots(bagID)
+				if (not frame.Bags[bagID] and numSlots ~= 0) or (frame.Bags[bagID] and numSlots ~= frame.Bags[bagID].numSlots) then
+					B:Layout(frame.isBank)
+					return
+				end
+			end
+
+			B:UpdateAllSlots(frame)
+			for slotID = 1, GetKeyRingSize() do
+				B:UpdateKeySlot(slotID)
+			end
+
+			--Refresh search in case we moved items around
+			if B:IsSearching() then B:RefreshSearch() end
+		end, 0.1)
+	end
+end
+
 function B:OnEvent(event, ...)
 	if event == "ITEM_LOCK_CHANGED" or event == "ITEM_UNLOCKED" then
 		local bag, slot = ...
@@ -910,25 +937,10 @@ function B:OnEvent(event, ...)
 			B:UpdateSlot(self, bag, slot)
 		end
 	elseif event == "BAG_UPDATE" then
-		local bag = ...
-		if bag == KEYRING_CONTAINER then
-			for slotID = 1, GetKeyRingSize() do
-				B:UpdateKeySlot(slotID)
-			end
-		end
-
-		for _, bagID in ipairs(self.BagIDs) do
-			local numSlots = GetContainerNumSlots(bagID)
-			if (not self.Bags[bagID] and numSlots ~= 0) or (self.Bags[bagID] and numSlots ~= self.Bags[bagID].numSlots) then
-				B:Layout(self.isBank)
-				return
-			end
-		end
-
-		B:UpdateBagSlots(self, ...)
-
-		--Refresh search in case we moved items around
-		if B:IsSearching() then B:RefreshSearch() end
+		-- PR5 perf: coalesce bursty BAG_UPDATE events (sorting, vendor grays,
+		-- raid looting) into a single deferred refresh instead of running the
+		-- full slot update synchronously on every event.
+		B:FlushDeferredBagUpdate(self)
 	elseif event == "BAG_UPDATE_COOLDOWN" then
 		if not self:IsShown() then return end
 		B:UpdateCooldowns(self)

@@ -11,6 +11,11 @@ P.general = {
 	stickyFrames = true,
 	loginmessage = true,
 	interruptAnnounce = "NONE",
+	questAnnounce = {
+		enable = true,
+		every = 0,
+		debug = false
+	},
 	autoRepair = "NONE",
 	autoRoll = false,
 	autoAcceptInvite = false,
@@ -1076,6 +1081,10 @@ P.chat = {
 	shortChannels = true,
 	hyperlinkHover = true,
 	throttleInterval = 30,
+	-- PR2: chat-filter BEGIN
+	multiChannelDeduplicate = false,
+	multiChannelInterval = 15,
+	-- PR2: chat-filter END
 	scrollDownInterval = 15,
 	fade = true,
 	inactivityTimer = 120,
@@ -1259,6 +1268,10 @@ P.unitframe = {
 	targetOnMouseDown = false,
 	auraBlacklistModifier = "SHIFT",
 	thinBorders = false,
+	roleSortOrderParty = "TANK,HEALER,DAMAGER,NONE",
+	roleSortOrderRaid = "TANK,HEALER,DAMAGER,NONE",
+	roleSortPlayerSeparatelyParty = false,
+	roleSortPlayerSeparatelyRaid = false,
 	cooldown = {
 		override = true,
 		reverse = false,
@@ -1367,6 +1380,14 @@ P.unitframe = {
 			personal = {r = 0, g = 1, b = 0.5, a = 0.25},
 			others = {r = 0, g = 1, b = 0, a = 0.25},
 			maxOverflow = 0
+		},
+		healAbsorbs = {
+			absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6},
+			absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6},
+			absorbPlayerOutline = "NONE",
+			absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1},
+			absorbOtherOutline = "NONE",
+			absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1},
 		},
 		classResources = {
 			comboPoints = {
@@ -4319,6 +4340,48 @@ P.unitframe = {
 		}
 	}
 }
+
+-- PR3: unitframe-threat BEGIN
+do
+	local function newThreatDefaults()
+		return {
+			enable = false,
+			position = "BOTTOMRIGHT",
+			size = 12,
+			xOffset = 0,
+			yOffset = 0,
+			attachTo = "Health",
+			texture = "ElvUI Blank",
+			font = "Homespun",
+			fontSize = 10,
+			fontOutline = "MONOCHROMEOUTLINE",
+			textColor = { r = 1, g = 1, b = 1, a = 1 }
+		}
+	end
+
+	local units = P.unitframe.units
+	if units and units.player then units.player.threat = newThreatDefaults() end
+	if units and units.target then units.target.threat = newThreatDefaults() end
+	if units and units.party then units.party.threat = newThreatDefaults() end
+	if units and units.raid then units.raid.threat = newThreatDefaults() end
+	if units and units.boss then units.boss.threat = newThreatDefaults() end
+end
+-- PR3: unitframe-threat END
+
+-- PR4: unitframe-power BEGIN
+do
+	local function newCustomColorDefaults()
+		return { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+	end
+
+	local units = P.unitframe.units
+	if units and units.player and units.player.power then units.player.power.customColor = newCustomColorDefaults() end
+	if units and units.target and units.target.power then units.target.power.customColor = newCustomColorDefaults() end
+	if units and units.party and units.party.power then units.party.power.customColor = newCustomColorDefaults() end
+	if units and units.raid and units.raid.power then units.raid.power.customColor = newCustomColorDefaults() end
+	if units and units.boss and units.boss.power then units.boss.power.customColor = newCustomColorDefaults() end
+end
+-- PR4: unitframe-power END
 
 --Cooldown
 P.cooldown = {

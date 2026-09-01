@@ -601,6 +601,24 @@ G.unitframe.AuraBarColors = {
 	[SpellName(32182)] = {r = 0.98, g = 0.57, b = 0.10},	-- Heroism
 }
 
+-- Damage absorb shields recognized by the absorb engine (Core/AbsorbEngine.lua).
+-- Editable in Filters config; the Recent Auras Tracker makes adding new shields easy.
+-- Native WotLK 3.3.5a absorb shields (Ascension/CoA spells removed for standard realm).
+-- Name keys are used because spell IDs vary between ranks/reworks.
+G.unitframe.aurafilters["Absorb Shields"] = {
+	type = "Whitelist",
+	spells = {
+		["Anti-Magic Shell"] = Defaults(),
+		["Blood Shield"] = Defaults(),
+		["Divine Aegis"] = Defaults(),
+		["Ice Barrier"] = Defaults(),
+		["Mana Shield"] = Defaults(),
+		["Power Word: Shield"] = Defaults(),
+		["Sacred Shield"] = Defaults(),
+		["Savage Defense"] = Defaults(),
+	},
+}
+
 G.unitframe.DebuffHighlightColors = {
 	[25771] = {enable = false, style = "FILL", color = {r = 0.85, g = 0, b = 0, a = 0.85}}, -- Forbearance
 }

@@ -13,6 +13,91 @@ local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 
 local ACD = E.Libs.AceConfigDialog
 
+local roleTextures = {
+	TANK = "Interface\\AddOns\\ElvUI\\media\\textures\\tank",
+	HEALER = "Interface\\AddOns\\ElvUI\\media\\textures\\healer",
+	DAMAGER = "Interface\\AddOns\\ElvUI\\media\\textures\\dps",
+	PLAYER = "Interface\\Icons\\Ability_CharacterFrame_Portrait",
+	NONE = "Interface\\Icons\\INV_Misc_QuestionMark"
+}
+
+local function GetRoleSortString(group)
+	local order
+	if group == "party" then
+		order = E.db.unitframe.roleSortOrderParty or "TANK,HEALER,DAMAGER,NONE"
+	else
+		order = E.db.unitframe.roleSortOrderRaid or "TANK,HEALER,DAMAGER,NONE"
+	end
+	if order == "" then order = "TANK,HEALER,DAMAGER,NONE" end
+	return order
+end
+
+local function GetAllowedRoles(group)
+	local sep
+	if group == "party" then
+		sep = E.db.unitframe.roleSortPlayerSeparatelyParty
+	else
+		sep = E.db.unitframe.roleSortPlayerSeparatelyRaid
+	end
+	if sep then
+		return {"TANK", "HEALER", "DAMAGER", "PLAYER", "NONE"}
+	else
+		return {"TANK", "HEALER", "DAMAGER", "NONE"}
+	end
+end
+
+local function GetRoleAtSlot(group, slotIndex)
+	local order = GetRoleSortString(group)
+	order = string.upper(order):gsub("%s+", ""):gsub("DPS", "DAMAGER")
+	local parts = { strsplit(",", order) }
+	local allowed = GetAllowedRoles(group)
+	local allowedMap = {}
+	for _, r in ipairs(allowed) do allowedMap[r] = true end
+
+	local seen = {}
+	local cleanParts = {}
+	for _, p in ipairs(parts) do
+		if allowedMap[p] and not seen[p] then
+			seen[p] = true
+			tinsert(cleanParts, p)
+		end
+	end
+	for _, r in ipairs(allowed) do
+		if not seen[r] then
+			tinsert(cleanParts, r)
+		end
+	end
+	return cleanParts[slotIndex]
+end
+
+local function SetRoleAtSlot(group, slotIndex, newRole)
+	local allowed = GetAllowedRoles(group)
+	local current = {}
+	for i = 1, #allowed do
+		current[i] = GetRoleAtSlot(group, i)
+	end
+	local oldIndex
+	for i = 1, #allowed do
+		if current[i] == newRole then
+			oldIndex = i
+			break
+		end
+	end
+	if oldIndex then
+		local temp = current[slotIndex]
+		current[slotIndex] = current[oldIndex]
+		current[oldIndex] = temp
+	end
+
+	if group == "party" then
+		E.db.unitframe.roleSortOrderParty = tconcat(current, ",")
+	else
+		E.db.unitframe.roleSortOrderRaid = tconcat(current, ",")
+	end
+	UF:UpdateAllHeaders()
+	UF:QueueRoleSortUpdate()
+end
+
 local positionValues = {
 	TOPLEFT = "TOPLEFT",
 	LEFT = "LEFT",
@@ -960,6 +1045,60 @@ local function GetOptionsTable_Power(hasDetatchOption, updateFunc, groupName, nu
 				name = L["Text yOffset"],
 				desc = L["Offset position for text."],
 				min = -300, max = 300, step = 1
+			},
+			customColorGroup = {
+				order = 12,
+				type = "group",
+				name = L["Custom Color"],
+				guiInline = true,
+				get = function(info)
+					local c = E.db.unitframe.units[groupName].power.customColor
+					if not c then
+						c = { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+						E.db.unitframe.units[groupName].power.customColor = c
+					end
+					return c[info[#info]]
+				end,
+				set = function(info, value)
+					local c = E.db.unitframe.units[groupName].power.customColor
+					if not c then
+						c = { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+						E.db.unitframe.units[groupName].power.customColor = c
+					end
+					c[info[#info]] = value
+					updateFunc(UF, groupName, numUnits)
+				end,
+				args = {
+					enable = {
+						order = 1,
+						type = "toggle",
+						name = L["Enable Custom Color"],
+						desc = L["Enable custom power bar color for this unitframe."],
+					},
+					color = {
+						order = 2,
+						type = "color",
+						name = L["COLOR"],
+						disabled = function()
+							local c = E.db.unitframe.units[groupName].power.customColor
+							return not (c and c.enable)
+						end,
+						get = function(info)
+							local c = E.db.unitframe.units[groupName].power.customColor
+							if not c or not c.color then return 0.2, 0.6, 1 end
+							return c.color.r, c.color.g, c.color.b
+						end,
+						set = function(info, r, g, b)
+							local c = E.db.unitframe.units[groupName].power.customColor
+							if not c then
+								c = { enable = false, color = { r = 0.2, g = 0.6, b = 1 } }
+								E.db.unitframe.units[groupName].power.customColor = c
+							end
+							c.color = { r = r, g = g, b = b }
+							updateFunc(UF, groupName, numUnits)
+						end,
+					},
+				},
 			},
 			attachTextTo = {
 				order = 10,
@@ -2128,7 +2267,26 @@ local function GetOptionsTable_HealPrediction(updateFunc, groupName, numGroup)
 		type = "group",
 		name = L["Heal Prediction"],
 		desc = L["Show an incoming heal prediction bar on the unitframe. Also display a slightly different colored bar for incoming overheals."],
-		get = function(info) return E.db.unitframe.units[groupName].healPrediction[info[#info]] end,
+		get = function(info)
+			local val = E.db.unitframe.units[groupName].healPrediction[info[#info]]
+			if val == nil then
+				if info[#info] == "absorbsEnable" then return true
+				elseif info[#info] == "absorbsPersonalOnly" then return false
+				elseif info[#info] == "showAbsorbIcons" then return true
+				elseif info[#info] == "absorbIconSize" then return 12
+				elseif info[#info] == "absorbIconXOffset" then return 0
+				elseif info[#info] == "absorbIconYOffset" then return 0
+				elseif info[#info] == "showAbsorbText" then return true
+				elseif info[#info] == "shortAbsorbText" then return true
+				elseif info[#info] == "absorbTextXOffset" then return 0
+				elseif info[#info] == "absorbTextYOffset" then return 0
+				elseif info[#info] == "absorbSeparatorWidth" then return 1.5
+				elseif info[#info] == "absorbSeparatorAlpha" then return 0.6
+				elseif info[#info] == "absorbPulse" then return false
+				end
+			end
+			return val
+		end,
 		set = function(info, value) E.db.unitframe.units[groupName].healPrediction[info[#info]] = value updateFunc(UF, groupName, numGroup) end,
 		args = {
 			header = {
@@ -2147,6 +2305,155 @@ local function GetOptionsTable_HealPrediction(updateFunc, groupName, numGroup)
 				name = L["COLORS"],
 				func = function() ACD:SelectGroup("ElvUI", "unitframe", "generalOptionsGroup", "allColorsGroup", "healPrediction") end,
 				disabled = function() return not E.UnitFrames.Initialized end
+			},
+			absorbsEnable = {
+				order = 4,
+				type = "toggle",
+				name = L["Enable Absorbs"],
+				desc = L["Display shield/absorb amounts on the health bar."]
+			},
+			absorbsPersonalOnly = {
+				order = 5,
+				type = "toggle",
+				name = L["Personal Shields Only"],
+				desc = L["Only display shields cast by yourself."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			showAbsorbIcons = {
+				order = 6,
+				type = "toggle",
+				name = L["Show Absorb Icons"],
+				desc = L["Display spell icons on the absorb segments."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			absorbIconSize = {
+				order = 6,
+				type = "range",
+				name = L["Absorb Icon Size"],
+				min = 6, max = 24, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local iconShow = (db.showAbsorbIcons == nil or db.showAbsorbIcons == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and iconShow)
+				end
+			},
+			absorbIconXOffset = {
+				order = 7,
+				type = "range",
+				name = L["Icon X-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local iconShow = (db.showAbsorbIcons == nil or db.showAbsorbIcons == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and iconShow)
+				end
+			},
+			absorbIconYOffset = {
+				order = 8,
+				type = "range",
+				name = L["Icon Y-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local iconShow = (db.showAbsorbIcons == nil or db.showAbsorbIcons == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and iconShow)
+				end
+			},
+			showAbsorbText = {
+				order = 9,
+				type = "toggle",
+				name = L["Show Absorb Values"],
+				desc = L["Display absorb value text on the segments."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			shortAbsorbText = {
+				order = 10,
+				type = "toggle",
+				name = L["Short Value Format"],
+				desc = L["Display absorb values in short format (e.g. 1.5k) instead of full format (e.g. 1470)."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local valShow = (db.showAbsorbText == nil or db.showAbsorbText == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and valShow)
+				end
+			},
+			absorbTextXOffset = {
+				order = 11,
+				type = "range",
+				name = L["Text X-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local valShow = (db.showAbsorbText == nil or db.showAbsorbText == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and valShow)
+				end
+			},
+			absorbTextYOffset = {
+				order = 12,
+				type = "range",
+				name = L["Text Y-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local valShow = (db.showAbsorbText == nil or db.showAbsorbText == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and valShow)
+				end
+			},
+			absorbSeparatorWidth = {
+				order = 13,
+				type = "range",
+				name = L["Divider Line Width"],
+				min = 0, max = 5, step = 0.5,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			absorbSeparatorAlpha = {
+				order = 14,
+				type = "range",
+				name = L["Divider Line Opacity"],
+				min = 0, max = 1, step = 0.05,
+				isPercent = true,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			absorbPulse = {
+				order = 15,
+				type = "toggle",
+				name = L["Enable Pulse Animation"],
+				desc = L["Gently pulse the opacity of the active shield segments."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			clampAbsorbs = {
+				order = 16,
+				type = "toggle",
+				name = L["Never Overflow Unit Frame"],
+				desc = L["Clamp and scale active shields so they never extend outside the unit frame bounds."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
 			}
 		}
 	}
@@ -2534,6 +2841,127 @@ local function GetOptionsTable_Cutaway(updateFunc, groupName, numGroup)
 
 	return config
 end
+
+-- PR3: unitframe-threat BEGIN
+local function GetOptionsTable_ThreatIndicator(updateFunc, groupName)
+	local config = {
+		order = 850,
+		type = "group",
+		name = L["Threat Indicator"],
+		get = function(info)
+			local key = info[#info]
+			local db = E.db.unitframe.units[groupName].threat
+			if not db then return end
+			local val = db[key]
+			if type(val) == "table" then
+				return val.r, val.g, val.b, val.a
+			else
+				return val
+			end
+		end,
+		set = function(info, value, g, b, a)
+			local key = info[#info]
+			local db = E.db.unitframe.units[groupName].threat
+			if not db then return end
+			if type(db[key]) == "table" then
+				db[key].r, db[key].g, db[key].b, db[key].a = value, g, b, a
+			else
+				db[key] = value
+			end
+			UF:UpdateThreatSettings(groupName)
+		end,
+		args = {
+			header = {
+				order = 1,
+				type = "header",
+				name = L["Threat Indicator"]
+			},
+			enable = {
+				order = 2,
+				type = "toggle",
+				name = L["Enable"]
+			},
+			size = {
+				order = 3,
+				type = "range",
+				name = L["Size"],
+				min = 6, max = 100, step = 1
+			},
+			attachTo = {
+				order = 4,
+				type = "select",
+				name = L["Attach To"],
+				values = attachToValues
+			},
+			position = {
+				order = 5,
+				type = "select",
+				name = L["Position"],
+				values = positionValues
+			},
+			xOffset = {
+				order = 6,
+				type = "range",
+				name = L["X-Offset"],
+				min = -300, max = 300, step = 1
+			},
+			yOffset = {
+				order = 7,
+				type = "range",
+				name = L["Y-Offset"],
+				min = -300, max = 300, step = 1
+			},
+			texture = {
+				order = 8,
+				type = "select",
+				dialogControl = "LSM30_Statusbar",
+				name = L["Texture"],
+				values = AceGUIWidgetLSMlists.statusbar
+			},
+			fontGroup = {
+				order = 20,
+				type = "group",
+				name = L["Text Settings"],
+				guiInline = true,
+				args = {
+					font = {
+						order = 1,
+						type = "select",
+						dialogControl = "LSM30_Font",
+						name = L["Font"],
+						values = AceGUIWidgetLSMlists.font
+					},
+					fontSize = {
+						order = 2,
+						type = "range",
+						name = L["Font Size"],
+						min = 4, max = 32, step = 1
+					},
+					fontOutline = {
+						order = 3,
+						type = "select",
+						name = L["Font Outline"],
+						values = {
+							["NONE"] = L["None"],
+							["OUTLINE"] = "OUTLINE",
+							["MONOCHROMEOUTLINE"] = "MONOCHROMEOUTLINE",
+							["THICKOUTLINE"] = "THICKOUTLINE"
+						}
+					},
+					textColor = {
+						order = 4,
+						type = "color",
+						name = L["Text Color"],
+						hasAlpha = true
+					}
+				}
+			}
+		}
+	}
+
+	return config
+end
+-- PR3: unitframe-threat END
 
 E.Options.args.unitframe = {
 	type = "group",
@@ -3666,6 +4094,106 @@ E.Options.args.unitframe = {
 								}
 							}
 						},
+						healAbsorbs = {
+							order = 9,
+							type = "group",
+							name = "Heal Absorbs",
+							get = function(info)
+								if not E.db.unitframe.colors.healAbsorbs then
+									E.db.unitframe.colors.healAbsorbs = {}
+								end
+								local hAbs = E.db.unitframe.colors.healAbsorbs
+								if not hAbs.absorbPlayer then hAbs.absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6} end
+								if not hAbs.absorbOther then hAbs.absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6} end
+								if not hAbs.absorbPlayerOutline then hAbs.absorbPlayerOutline = "NONE" end
+								if not hAbs.absorbPlayerOutlineColor then hAbs.absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+								if not hAbs.absorbOtherOutline then hAbs.absorbOtherOutline = "NONE" end
+								if not hAbs.absorbOtherOutlineColor then hAbs.absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+
+								local optionName = info[#info]
+								if optionName == "absorbPlayerOutline" or optionName == "absorbOtherOutline" then
+									return hAbs[optionName]
+								else
+									local t = hAbs[optionName]
+									local d = P.unitframe.colors.healAbsorbs[optionName]
+									return t.r, t.g, t.b, t.a, d.r, d.g, d.b, d.a
+								end
+							end,
+							set = function(info, ...)
+								if not E.db.unitframe.colors.healAbsorbs then
+									E.db.unitframe.colors.healAbsorbs = {}
+								end
+								local hAbs = E.db.unitframe.colors.healAbsorbs
+								if not hAbs.absorbPlayer then hAbs.absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6} end
+								if not hAbs.absorbOther then hAbs.absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6} end
+								if not hAbs.absorbPlayerOutline then hAbs.absorbPlayerOutline = "NONE" end
+								if not hAbs.absorbPlayerOutlineColor then hAbs.absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+								if not hAbs.absorbOtherOutline then hAbs.absorbOtherOutline = "NONE" end
+								if not hAbs.absorbOtherOutlineColor then hAbs.absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+
+								local optionName = info[#info]
+								if optionName == "absorbPlayerOutline" or optionName == "absorbOtherOutline" then
+									local value = ...
+									hAbs[optionName] = value
+								else
+									local r, g, b, a = ...
+									local t = hAbs[optionName]
+									t.r, t.g, t.b, t.a = r, g, b, a
+								end
+								UF:Update_AllFrames()
+							end,
+							args = {
+								header = {
+									order = 1,
+									type = "header",
+									name = "Heal Absorbs"
+								},
+								absorbPlayer = {
+									order = 2,
+									type = "color",
+									name = "My Shields Color",
+									hasAlpha = true
+								},
+								absorbOther = {
+									order = 3,
+									type = "color",
+									name = "Other Shields Color",
+									hasAlpha = true
+								},
+								absorbPlayerOutline = {
+									order = 4,
+									type = "select",
+									name = "My Shields Outline Effect",
+									values = {
+										["NONE"] = L["None"],
+										["SOLID"] = "Solid Line",
+										["GLOW"] = "Soft Pulsing Glow"
+									}
+								},
+								absorbPlayerOutlineColor = {
+									order = 5,
+									type = "color",
+									name = "My Shields Outline Color",
+									hasAlpha = true
+								},
+								absorbOtherOutline = {
+									order = 6,
+									type = "select",
+									name = "Other Shields Outline Effect",
+									values = {
+										["NONE"] = L["None"],
+										["SOLID"] = "Solid Line",
+										["GLOW"] = "Soft Pulsing Glow"
+									}
+								},
+								absorbOtherOutlineColor = {
+									order = 7,
+									type = "color",
+									name = "Other Shields Outline Color",
+									hasAlpha = true
+								},
+							}
+						},
 						debuffHighlight = {
 							order = 9,
 							type = "group",
@@ -3977,6 +4505,7 @@ E.Options.args.unitframe.args.player = {
 		aurabar = GetOptionsTable_AuraBars(UF.CreateAndUpdateUF, "player"),
 		raidicon = GetOptionsTable_RaidIcon(UF.CreateAndUpdateUF, "player"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUF, "player"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateUF, "player"),
 		classbar = {
 			order = 750,
 			type = "group",
@@ -4601,6 +5130,7 @@ E.Options.args.unitframe.args.target = {
 		aurabar = GetOptionsTable_AuraBars(UF.CreateAndUpdateUF, "target"),
 		raidicon = GetOptionsTable_RaidIcon(UF.CreateAndUpdateUF, "target"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUF, "target"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateUF, "target"),
 		GPSArrow = GetOptionsTableForNonGroup_GPS("target"),
 		combobar = {
 			order = 850,
@@ -5766,7 +6296,8 @@ E.Options.args.unitframe.args.boss = {
 		debuffs = GetOptionsTable_Auras("debuffs", UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
 		castbar = GetOptionsTable_Castbar(false, UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
 		raidicon = GetOptionsTable_RaidIcon(UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
-		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES)
+		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateUFGroup, "boss"),
 	}
 }
 
@@ -6153,64 +6684,254 @@ E.Options.args.unitframe.args.party = {
 					}
 				},
 				sortingGroup = {
-					order = 300,
-					type = "group",
-					guiInline = true,
-					name = L["Grouping & Sorting"],
-					set = function(info, value) E.db.unitframe.units.party[info[#info]] = value UF:CreateAndUpdateHeaderGroup("party", nil, nil, true) end,
-					args = {
-						groupBy = {
-							order = 1,
-							type = "select",
-							name = L["Group By"],
-							desc = L["Set the order that the group will sort."],
-							values = {
-								["CLASS"] = L["CLASS"],
-								["NAME"] = L["NAME"],
-								["MTMA"] = L["Main Tanks / Main Assist"],
-								["GROUP"] = L["GROUP"]
+						order = 300,
+						type = "group",
+						guiInline = true,
+						name = L["Grouping & Sorting"],
+						set = function(info, value) E.db.unitframe.units.party[info[#info]] = value UF:CreateAndUpdateHeaderGroup("party", nil, nil, true) end,
+						args = {
+							groupBy = {
+								order = 1,
+								type = "select",
+								name = L["Group By"],
+								desc = L["Set the order that the group will sort."],
+								values = {
+									["CLASS"] = L["CLASS"],
+									["ASSIGNEDROLE"] = L["ROLE"],
+									["NAME"] = L["NAME"],
+									["MTMA"] = L["Main Tanks / Main Assist"],
+									["GROUP"] = L["GROUP"]
+								}
+							},
+							sortDir = {
+								order = 2,
+								type = "select",
+								name = L["Sort Direction"],
+								desc = L["Defines the sort order of the selected sort method."],
+								values = {
+									["ASC"] = L["Ascending"],
+									["DESC"] = L["Descending"]
+								}
+							},
+							spacer = {
+								order = 3,
+								type = "description",
+								width = "full",
+								name = " "
+							},
+							roleSortOrder = {
+								order = 4,
+								type = "group",
+								name = "Role Sort Order",
+								guiInline = true,
+								hidden = function() return E.db.unitframe.units.party.groupBy ~= "ASSIGNEDROLE" end,
+								args = {
+									roleSortPlayerSeparatelyParty = {
+										order = 0,
+										type = "toggle",
+										name = "Sort Player Separately",
+										desc = "If enabled, the player (Me) can be sorted separately from their active role.",
+										get = function(info) return E.db.unitframe.roleSortPlayerSeparatelyParty end,
+										set = function(info, value) E.db.unitframe.roleSortPlayerSeparatelyParty = value UF:UpdateAllHeaders() end,
+										width = "full",
+									},
+									slot1_img = {
+										order = 1,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 1)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot1 = {
+										order = 2,
+										type = "select",
+										name = "1st Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 1) end,
+										set = function(info, value) SetRoleAtSlot("party", 1, value) end,
+									},
+									slot1_spacer = {
+										order = 3,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot2_img = {
+										order = 4,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 2)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot2 = {
+										order = 5,
+										type = "select",
+										name = "2nd Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 2) end,
+										set = function(info, value) SetRoleAtSlot("party", 2, value) end,
+									},
+									slot2_spacer = {
+										order = 6,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot3_img = {
+										order = 7,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 3)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot3 = {
+										order = 8,
+										type = "select",
+										name = "3rd Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 3) end,
+										set = function(info, value) SetRoleAtSlot("party", 3, value) end,
+									},
+									slot3_spacer = {
+										order = 9,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot4_img = {
+										order = 10,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 4)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot4 = {
+										order = 11,
+										type = "select",
+										name = "4th Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 4) end,
+										set = function(info, value) SetRoleAtSlot("party", 4, value) end,
+									},
+									slot4_spacer = {
+										order = 12,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot5_img = {
+										order = 13,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 5)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot5 = {
+										order = 14,
+										type = "select",
+										name = "5th Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 5) end,
+										set = function(info, value) SetRoleAtSlot("party", 5, value) end,
+									},
+									slot5_spacer = {
+										order = 15,
+										type = "description",
+										name = "",
+										width = "full",
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+									},
+									slot6_img = {
+										order = 16,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 6)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+									},
+									slot6 = {
+										order = 17,
+										type = "select",
+										name = "6th Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 6) end,
+										set = function(info, value) SetRoleAtSlot("party", 6, value) end,
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+									},
+								}
+							},
+							raidWideSorting = {
+								order = 4,
+								type = "toggle",
+								name = L["Raid-Wide Sorting"],
+								desc = L["Enabling this allows raid-wide sorting however you will not be able to distinguish between groups."]
+							},
+							invertGroupingOrder = {
+								order = 5,
+								type = "toggle",
+								name = L["Invert Grouping Order"],
+								desc = L["Enabling this inverts the grouping order when the raid is not full, this will reverse the direction it starts from."],
+								disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
+							},
+							startFromCenter = {
+								order = 6,
+								type = "toggle",
+								name = L["Start Near Center"],
+								desc = L["The initial group will start near the center and grow out."],
+								disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
 							}
-						},
-						sortDir = {
-							order = 2,
-							type = "select",
-							name = L["Sort Direction"],
-							desc = L["Defines the sort order of the selected sort method."],
-							values = {
-								["ASC"] = L["Ascending"],
-								["DESC"] = L["Descending"]
-							}
-						},
-						spacer = {
-							order = 3,
-							type = "description",
-							width = "full",
-							name = " "
-						},
-						raidWideSorting = {
-							order = 4,
-							type = "toggle",
-							name = L["Raid-Wide Sorting"],
-							desc = L["Enabling this allows raid-wide sorting however you will not be able to distinguish between groups."]
-						},
-						invertGroupingOrder = {
-							order = 5,
-							type = "toggle",
-							name = L["Invert Grouping Order"],
-							desc = L["Enabling this inverts the grouping order when the raid is not full, this will reverse the direction it starts from."],
-							disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
-						},
-						startFromCenter = {
-							order = 6,
-							type = "toggle",
-							name = L["Start Near Center"],
-							desc = L["The initial group will start near the center and grow out."],
-							disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
 						}
 					}
 				}
-			}
-		},
+			},
 		buffIndicator = {
 			order = 600,
 			type = "group",
@@ -6555,6 +7276,7 @@ E.Options.args.unitframe.args.party = {
 		readycheckIcon = GetOptionsTable_ReadyCheckIcon(UF.CreateAndUpdateHeaderGroup, "party"),
 		resurrectIcon = GetOptionsTable_ResurrectIcon(UF.CreateAndUpdateHeaderGroup, "party"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateHeaderGroup, "party"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateHeaderGroup, "party"),
 		GPSArrow = GetOptionsTable_GPS("party")
 	}
 }
@@ -6762,6 +7484,7 @@ E.Options.args.unitframe.args.raid = {
 							desc = L["Set the order that the group will sort."],
 							values = {
 								["CLASS"] = L["CLASS"],
+								["ASSIGNEDROLE"] = L["ROLE"],
 								["NAME"] = L["NAME"],
 								["MTMA"] = L["Main Tanks / Main Assist"],
 								["GROUP"] = L["GROUP"]
@@ -6782,6 +7505,195 @@ E.Options.args.unitframe.args.raid = {
 							type = "description",
 							width = "full",
 							name = " "
+						},
+						roleSortOrder = {
+							order = 4,
+							type = "group",
+							name = "Role Sort Order",
+							guiInline = true,
+							hidden = function() return E.db.unitframe.units.raid.groupBy ~= "ASSIGNEDROLE" end,
+							args = {
+								roleSortPlayerSeparatelyRaid = {
+									order = 0,
+									type = "toggle",
+									name = "Sort Player Separately",
+									desc = "If enabled, the player (Me) can be sorted separately from their active role.",
+									get = function(info) return E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									set = function(info, value) E.db.unitframe.roleSortPlayerSeparatelyRaid = value UF:UpdateAllHeaders() end,
+									width = "full",
+								},
+								slot1_img = {
+									order = 1,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 1)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot1 = {
+									order = 2,
+									type = "select",
+									name = "1st Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 1) end,
+									set = function(info, value) SetRoleAtSlot("raid", 1, value) end,
+								},
+								slot1_spacer = {
+									order = 3,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot2_img = {
+									order = 4,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 2)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot2 = {
+									order = 5,
+									type = "select",
+									name = "2nd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 2) end,
+									set = function(info, value) SetRoleAtSlot("raid", 2, value) end,
+								},
+								slot2_spacer = {
+									order = 6,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot3_img = {
+									order = 7,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 3)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot3 = {
+									order = 8,
+									type = "select",
+									name = "3rd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 3) end,
+									set = function(info, value) SetRoleAtSlot("raid", 3, value) end,
+								},
+								slot3_spacer = {
+									order = 9,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot4_img = {
+									order = 10,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 4)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot4 = {
+									order = 11,
+									type = "select",
+									name = "4th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 4) end,
+									set = function(info, value) SetRoleAtSlot("raid", 4, value) end,
+								},
+								slot4_spacer = {
+									order = 12,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot5_img = {
+									order = 13,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 5)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot5 = {
+									order = 14,
+									type = "select",
+									name = "5th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 5) end,
+									set = function(info, value) SetRoleAtSlot("raid", 5, value) end,
+								},
+								slot5_spacer = {
+									order = 15,
+									type = "description",
+									name = "",
+									width = "full",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6_img = {
+									order = 16,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 6)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6 = {
+									order = 17,
+									type = "select",
+									name = "6th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 6) end,
+									set = function(info, value) SetRoleAtSlot("raid", 6, value) end,
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+							}
 						},
 						raidWideSorting = {
 							order = 4,
@@ -6974,6 +7886,7 @@ E.Options.args.unitframe.args.raid = {
 		readycheckIcon = GetOptionsTable_ReadyCheckIcon(UF.CreateAndUpdateHeaderGroup, "raid"),
 		resurrectIcon = GetOptionsTable_ResurrectIcon(UF.CreateAndUpdateHeaderGroup, "raid"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateHeaderGroup, "raid"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateHeaderGroup, "raid"),
 		GPSArrow = GetOptionsTable_GPS("raid")
 	}
 }
@@ -7181,6 +8094,7 @@ E.Options.args.unitframe.args.raid40 = {
 							desc = L["Set the order that the group will sort."],
 							values = {
 								["CLASS"] = L["CLASS"],
+								["ASSIGNEDROLE"] = L["ROLE"],
 								["NAME"] = L["NAME"],
 								["MTMA"] = L["Main Tanks / Main Assist"],
 								["GROUP"] = L["GROUP"]
@@ -7201,6 +8115,195 @@ E.Options.args.unitframe.args.raid40 = {
 							type = "description",
 							width = "full",
 							name = " "
+						},
+						roleSortOrder = {
+							order = 4,
+							type = "group",
+							name = "Role Sort Order",
+							guiInline = true,
+							hidden = function() return E.db.unitframe.units.raid40.groupBy ~= "ASSIGNEDROLE" end,
+							args = {
+								roleSortPlayerSeparatelyRaid = {
+									order = 0,
+									type = "toggle",
+									name = "Sort Player Separately",
+									desc = "If enabled, the player (Me) can be sorted separately from their active role.",
+									get = function(info) return E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									set = function(info, value) E.db.unitframe.roleSortPlayerSeparatelyRaid = value UF:UpdateAllHeaders() end,
+									width = "full",
+								},
+								slot1_img = {
+									order = 1,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 1)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot1 = {
+									order = 2,
+									type = "select",
+									name = "1st Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 1) end,
+									set = function(info, value) SetRoleAtSlot("raid", 1, value) end,
+								},
+								slot1_spacer = {
+									order = 3,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot2_img = {
+									order = 4,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 2)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot2 = {
+									order = 5,
+									type = "select",
+									name = "2nd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 2) end,
+									set = function(info, value) SetRoleAtSlot("raid", 2, value) end,
+								},
+								slot2_spacer = {
+									order = 6,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot3_img = {
+									order = 7,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 3)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot3 = {
+									order = 8,
+									type = "select",
+									name = "3rd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 3) end,
+									set = function(info, value) SetRoleAtSlot("raid", 3, value) end,
+								},
+								slot3_spacer = {
+									order = 9,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot4_img = {
+									order = 10,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 4)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot4 = {
+									order = 11,
+									type = "select",
+									name = "4th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 4) end,
+									set = function(info, value) SetRoleAtSlot("raid", 4, value) end,
+								},
+								slot4_spacer = {
+									order = 12,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot5_img = {
+									order = 13,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 5)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot5 = {
+									order = 14,
+									type = "select",
+									name = "5th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 5) end,
+									set = function(info, value) SetRoleAtSlot("raid", 5, value) end,
+								},
+								slot5_spacer = {
+									order = 15,
+									type = "description",
+									name = "",
+									width = "full",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6_img = {
+									order = 16,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 6)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6 = {
+									order = 17,
+									type = "select",
+									name = "6th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 6) end,
+									set = function(info, value) SetRoleAtSlot("raid", 6, value) end,
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+							}
 						},
 						raidWideSorting = {
 							order = 4,

@@ -780,6 +780,14 @@ function CH:FindURL(event, msg, author, ...)
 		return false, msg, author, ...
 	end
 
+	-- PR2: chat-filter — Fast path: nothing URL-shaped in the message -> skip the six gsub passes
+	-- below entirely (this is the hyperlinking cost the CoA devs disabled it for)
+	if not (find(msg, "://", 1, true) or find(msg, "www.", 1, true) or find(msg, "@", 1, true) or find(msg, "%d%.%d")) then
+		msg = CH:CheckKeyword(msg, author)
+		msg = CH:GetSmileyReplacementText(msg)
+		return false, msg, author, ...
+	end
+
 	local text, tag = msg, strmatch(msg, "{(.-)}")
 	if tag and ICON_TAG_LIST[strlower(tag)] then
 		text = gsub(gsub(text, "(%S)({.-})", "%1 %2"), "({.-})(%S)", "%1 %2")
@@ -1375,7 +1383,64 @@ function CH:ChatThrottleIntervalHandler(event, message, author, ...)
 	end
 end
 
+-- PR2: chat-filter — cross-channel spam dedup (ported from Krysio)
+local multiChannelThrottle = {}
+local lastMultiPrune = 0
+
+local function NormalizeSpamMessage(msg)
+	if not msg then return "" end
+	-- Strip color codes, links, icon/texture tags, punctuation, and normalize spaces
+	local clean = gsub(msg, "|c%x%x%x%x%x%x%x%x", "")
+	clean = gsub(clean, "|r", "")
+	clean = gsub(clean, "|H.-|h(.-)|h", "%1")
+	clean = gsub(clean, "%b{}", "")
+	clean = gsub(clean, "%b<>", "")
+	clean = gsub(clean, "[%p%s]+", "")
+	return strlower(clean)
+end
+
+function CH:IsMultiChannelDuplicate(author, message, when, channel)
+	if CH.db.multiChannelDeduplicate == false then return false end
+	if not author or author == "" or author == E.myname then return false end
+	if not message or message == "" then return false end
+
+	local sender = strlower(strmatch(author, "([^%-]+)") or author)
+	local normMsg = NormalizeSpamMessage(message)
+	if normMsg == "" then return false end
+
+	local chanName = tostring(channel or "")
+	local key = sender .. ":" .. normMsg
+	local lastData = multiChannelThrottle[key]
+	local interval = 3 -- 3 second window for cross-channel spam
+
+	-- Only block if the EXACT same message was posted to a DIFFERENT channel within 3 seconds
+	if lastData and lastData.channel ~= chanName and (when - lastData.time) <= interval then
+		return true
+	end
+
+	multiChannelThrottle[key] = { time = when, channel = chanName }
+
+	-- Lazy prune: sweep entries older than interval
+	if (when - lastMultiPrune) > interval then
+		lastMultiPrune = when
+		for k, data in pairs(multiChannelThrottle) do
+			if type(data) == "table" and (when - data.time) > interval then
+				multiChannelThrottle[k] = nil
+			elseif type(data) ~= "table" then
+				multiChannelThrottle[k] = nil
+			end
+		end
+	end
+
+	return false
+end
+
 function CH:CHAT_MSG_CHANNEL(event, message, author, ...)
+	local when = time()
+	local channel = select(7, ...) -- channelNameWithoutNumber or full channel string
+	if CH:IsMultiChannelDuplicate(author, message, when, channel) then
+		return true
+	end
 	return CH:ChatThrottleIntervalHandler(event, message, author, ...)
 end
 
@@ -1626,19 +1691,23 @@ end
 
 function CH:SaveChatHistory(event, ...)
 	if historyTypes[event] and not self.db.showHistory[historyTypes[event]] then return end
+	if not CH.db.chatHistory then return end
+
+	local arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 = ...
+
+	-- PR2: chat-filter — filter out background addon / system channel events that have no channel number
+	if event == "CHAT_MSG_CHANNEL" and (not arg8 or arg8 == 0 or not arg4 or arg4 == "") then
+		return
+	end
 
 	if self.db.throttleInterval ~= 0 and (event == "CHAT_MSG_SAY" or event == "CHAT_MSG_YELL" or event == "CHAT_MSG_CHANNEL") then
-		local message, author = ...
 		local when = time()
-
-		if not self:ChatThrottleBlockFlag(author, message, when) then
-			self:ChatThrottleHandler(author, message, when)
+		if not self:ChatThrottleBlockFlag(arg2, arg1, when) then
+			self:ChatThrottleHandler(arg2, arg1, when)
 		else
 			return
 		end
 	end
-
-	if not CH.db.chatHistory then return end
 
 	if select("#", ...) > 0 then
 		local historyLog = ElvCharacterDB.ChatHistoryLog
