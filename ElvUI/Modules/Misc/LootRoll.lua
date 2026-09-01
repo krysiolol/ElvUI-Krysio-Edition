@@ -37,11 +37,11 @@ local rollMessages = locale == "deDE" and {
 	["(.*) hat für (.+) 'Gier' ausgewählt"] = 2,
 	["(.*) hat für '(.+)' Entzauberung gewählt."] = 3,
 } or locale == "frFR" and {
-	["(.*) a passé pour : (.+) parce qu'((il)|(elle)) ne peut pas ramasser cette objet.$"] = 0,
-	["(.*) a passé pour : (.+)"] = 0,
-	["(.*) a choisi Besoin pour : (.+)"] = 1,
-	["(.*) a choisi Cupidité pour : (.+)"] = 2,
-	["(.*) a choisi Désenchantement pour : (.+)"] = 3,
+	["(.*) a passé pour : (.+) parce qu'((il)|(elle)) ne peut pas ramasser cette objet.$"] = 0,
+	["(.*) a passé pour : (.+)"] = 0,
+	["(.*) a choisi Besoin pour : (.+)"] = 1,
+	["(.*) a choisi Cupidité pour : (.+)"] = 2,
+	["(.*) a choisi Désenchantement pour : (.+)"] = 3,
 } or locale == "zhCN" and {
 	["(.*)自动放弃了：(.+)，因为他无法拾取该物品$"] = 0,
 	["(.*)自动放弃了：(.+)，因为她无法拾取该物品$"] = 0,
@@ -155,6 +155,10 @@ local function buttonOnLeave()
 end
 
 local function buttonOnClick(self)
+	if self.parent and self.parent.isTest then
+		M:ReleaseFrame(self.parent)
+		return
+	end
 	RollOnLoot(self.parent.rollID, self.rollType)
 end
 
@@ -181,6 +185,58 @@ local function increaseRollCount(self, count)
 	end
 end
 
+local function GetLootRollSettings()
+	local db = E.db.general.lootRoll
+	local width = (db and db.width) or FRAME_WIDTH
+	local height = (db and db.height) or FRAME_HEIGHT
+	local font = (db and db.font) and E.LSM:Fetch("font", db.font) or E.media.normFont
+	local fontSize = (db and db.fontSize) or 12
+	local fontOutline = (db and db.fontOutline) or "OUTLINE"
+	local transparency = (db and db.transparency) or 0.8
+	local bgColor = (db and db.bgColor) or {r = 0.06, g = 0.06, b = 0.06}
+	local useQualityColor = true
+	if db and db.useQualityColor ~= nil then
+		useQualityColor = db.useQualityColor
+	end
+	local rollCountFont = (db and db.rollCountFont) and E.LSM:Fetch("font", db.rollCountFont) or E.Media.Fonts.Homespun
+	local rollCountFontSize = (db and db.rollCountFontSize) or 10
+	local rollCountFontOutline = (db and db.rollCountFontOutline) or "MONOCHROMEOUTLINE"
+	local rollCountXOffset = (db and db.rollCountXOffset) or 0
+	local rollCountYOffset = (db and db.rollCountYOffset) or 0
+	return width, height, font, fontSize, fontOutline, transparency, bgColor, useQualityColor, rollCountFont, rollCountFontSize, rollCountFontOutline, rollCountXOffset, rollCountYOffset
+end
+
+local function ApplyLootRollBackdrop(frame, qualityColor)
+	local _, _, _, _, _, transparency, bgColor, useQualityColor = GetLootRollSettings()
+	local r, g, b = bgColor.r, bgColor.g, bgColor.b
+	if useQualityColor and qualityColor then
+		r, g, b = qualityColor.r, qualityColor.g, qualityColor.b
+	end
+
+	if frame.backdrop then
+		frame.backdrop:SetBackdropColor(r, g, b, transparency)
+	elseif frame.SetBackdropColor then
+		frame:SetBackdropColor(r, g, b, transparency)
+	end
+
+	if frame.status then
+		if useQualityColor and qualityColor then
+			frame.status:SetStatusBarColor(r, g, b, transparency * 0.8)
+		else
+			frame.status:SetStatusBarColor(r, g, b, transparency * 0.8)
+		end
+		if frame.status.bg then
+			frame.status.bg:SetTexture(E.media.blankTex)
+			frame.status.bg:SetVertexColor(bgColor.r, bgColor.g, bgColor.b)
+			frame.status.bg:SetAlpha(transparency)
+		end
+	end
+
+	if frame.fade then
+		frame.fade:SetAlpha(transparency * 0.5)
+	end
+end
+
 function M:CreateRollButton(parent, rollType)
 	local data = rollTypes[rollType]
 
@@ -203,14 +259,19 @@ function M:CreateRollButton(parent, rollType)
 	button.newbieText = data.newbieText
 
 	button.text = button:CreateFontString(nil, nil)
-	button.text:FontTemplate(nil, nil, "OUTLINE")
+	local _, _, _, _, _, _, _, _, rollCountFont, rollCountFontSize, rollCountFontOutline = GetLootRollSettings()
+	button.text:FontTemplate(rollCountFont, rollCountFontSize, rollCountFontOutline)
 
 	return button
 end
 
 local function itemOnEnter(self)
 	GameTooltip:SetOwner(self, POSITION == "TOP" and "ANCHOR_BOTTOMLEFT" or "ANCHOR_TOPLEFT")
-	GameTooltip:SetLootRollItem(self.rollID)
+	if self.parent and self.parent.isTest then
+		GameTooltip:SetHyperlink(self.link)
+	else
+		GameTooltip:SetLootRollItem(self.rollID)
+	end
 
 	CursorUpdate(self)
 end
@@ -223,7 +284,11 @@ end
 local function itemOnUpdate(self)
 	if GameTooltip:IsOwned(self) then
 		GameTooltip:SetOwner(self, POSITION == "TOP" and "ANCHOR_BOTTOMLEFT" or "ANCHOR_TOPLEFT")
-		GameTooltip:SetLootRollItem(self.rollID)
+		if self.parent and self.parent.isTest then
+			GameTooltip:SetHyperlink(self.link)
+		else
+			GameTooltip:SetLootRollItem(self.rollID)
+		end
 	end
 
 	CursorOnUpdate(self)
@@ -238,6 +303,7 @@ local function itemOnClick(self)
 end
 
 local function statusbarOnUpdate(self)
+	if self.parent and self.parent.isTest then return end
 	local timeLeft = GetLootRollTimeLeft(self.parent.rollID)
 	if timeLeft < 0 or timeLeft > self.parent.rollTime then
 		timeLeft = 0
@@ -248,23 +314,116 @@ local function statusbarOnUpdate(self)
 	self:SetValue(timeLeft)
 end
 
+function M:UpdateLootRoll()
+	local width, height, font, fontSize, fontOutline, _, _, _, rollCountFont, rollCountFontSize, rollCountFontOutline, rollCountXOffset, rollCountYOffset = GetLootRollSettings()
+	for _, frame in ipairs(self.RollBars) do
+		if frame then
+			frame:Size(width, height)
+			ApplyLootRollBackdrop(frame, frame.qualityColor)
+			if frame.itemButton then
+				frame.itemButton:Size(height - (E.Border * 2))
+			end
+			if frame.bindText then
+				frame.bindText:FontTemplate(font, fontSize, fontOutline)
+			end
+			if frame.itemName then
+				frame.itemName:FontTemplate(font, fontSize, fontOutline)
+			end
+			if frame.rollButtons then
+				for rollType, btn in pairs(frame.rollButtons) do
+					if btn and btn.text then
+						btn.text:FontTemplate(rollCountFont, rollCountFontSize, rollCountFontOutline)
+						btn.text:ClearAllPoints()
+						local xOff = rollType == 1 and -1 or 1
+						local yOff = rollType == 1 and 4 or (rollType == 2 and 5 or (rollType == 3 and 4 or 2))
+						btn.text:Point("CENTER", xOff + rollCountXOffset, yOff + rollCountYOffset)
+					end
+				end
+			end
+		end
+	end
+end
+
+function M:TestLootRoll()
+	for _, frame in ipairs(self.RollBars) do
+		if frame and frame.isTest and frame:IsShown() then
+			self:ReleaseFrame(frame)
+			return
+		end
+	end
+
+	local f = self:GetFrame()
+	local rollID = 99999
+	f.isTest = true
+	f.rollID = rollID
+	f.rollTime = 60000
+
+	f.itemButton.icon:SetTexture("Interface\\Icons\\INV_Jewelcrafting_Gem_28")
+	f.itemButton.rollID = rollID
+	f.itemButton.link = "|cffa335ee|Hitem:49623:0:0:0:0:0:0:0:80|h[Reins of the Time-Lost Proto-Drake]|h|r"
+
+	f.itemName:SetText("Reins of the Time-Lost Proto-Drake")
+
+	f.status:SetMinMaxValues(0, 60000)
+	f.status:SetValue(60000)
+
+	local color = ITEM_QUALITY_COLORS[4]
+	f.qualityColor = color
+
+	f.bindText:SetText("BoP")
+	f.bindText:SetVertexColor(1, 0.3, 0.1)
+
+	ApplyLootRollBackdrop(f, color)
+
+	f.needButton:ToggleLootButton(true, nil)
+	f.greedButton:ToggleLootButton(true, nil)
+	f.disenchantButton:ToggleLootButton(true, nil, nil)
+
+	f.passButton.text:SetText("4")
+	f.needButton.text:SetText("2")
+	f.greedButton.text:SetText("1")
+	f.disenchantButton.text:SetText("0")
+
+	f:Show()
+	AlertFrame_FixAnchors()
+end
+
 function M:CreateRollFrame()
 	self.numFrames = self.numFrames + 1
+	local width, height, font, fontSize, fontOutline = GetLootRollSettings()
 
 	local frame = CreateFrame("Frame", format("ElvUI_GroupLootFrame%d", self.numFrames), E.UIParent)
-	frame:Size(FRAME_WIDTH, FRAME_HEIGHT)
-	frame:SetTemplate()
+	frame:Size(width, height)
+	frame:SetTemplate("Transparent")
+	ApplyLootRollBackdrop(frame, nil)
 	frame:SetFrameStrata("DIALOG")
 	frame:Hide()
+	frame:SetMovable(true)
+	frame:EnableMouse(true)
+	frame:RegisterForDrag("LeftButton")
+	frame:SetScript("OnDragStart", function(self)
+		if self.isTest then
+			self:StartMoving()
+		end
+	end)
+	frame:SetScript("OnDragStop", function(self)
+		if self.isTest then
+			self:StopMovingOrSizing()
+		end
+	end)
+
+	local prevFrame = self.numFrames > 1 and self.RollBars[self.numFrames - 1]
+	if prevFrame == frame then prevFrame = nil end
+	local anchor = prevFrame or AlertFrameHolder
 
 	if POSITION == "TOP" then
-		frame:Point("TOP", self.numFrames > 1 and self.RollBars[self.numFrames - 1] or AlertFrameHolder, "BOTTOM", 0, -4)
+		frame:Point("TOP", anchor, "BOTTOM", 0, -4)
 	else
-		frame:Point("BOTTOM", self.numFrames > 1 and self.RollBars[self.numFrames - 1] or AlertFrameHolder, "TOP", 0, 4)
+		frame:Point("BOTTOM", anchor, "TOP", 0, 4)
 	end
 
 	local itemButton = CreateFrame("Button", "$parentIconFrame", frame)
-	itemButton:Size(FRAME_HEIGHT - (E.Border * 2))
+	itemButton:Size(height - (E.Border * 2))
 	itemButton:Point("RIGHT", frame, "LEFT", -(E.Spacing * 3), 0)
 	itemButton:CreateBackdrop()
 	itemButton:SetScript("OnEnter", itemOnEnter)
@@ -301,7 +460,7 @@ function M:CreateRollFrame()
 	status.bg:SetAllPoints()
 
 	local spark = frame:CreateTexture(nil, "OVERLAY")
-	spark:Size(14, FRAME_HEIGHT)
+	spark:Size(14, height)
 	spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
 	spark:SetBlendMode("ADD")
 	status.spark = spark
@@ -321,19 +480,21 @@ function M:CreateRollFrame()
 	frame.disenchantButton:Point("LEFT", frame.greedButton, "RIGHT", 0, 1)
 	frame.passButton:Point("LEFT", frame.disenchantButton, "RIGHT", 0, 2)
 
-	frame.needButton.text:Point("CENTER", 0, 2)
-	frame.greedButton.text:Point("CENTER", 1, 3)
-	frame.disenchantButton.text:Point("CENTER", 1, 2)
-	frame.passButton.text:Point("CENTER", 1, 0)
+	local _, _, _, _, _, _, _, _, _, _, _, rollCountXOffset, rollCountYOffset = GetLootRollSettings()
+	frame.needButton.text:Point("CENTER", -1 + rollCountXOffset, 4 + rollCountYOffset)
+	frame.greedButton.text:Point("CENTER", 1 + rollCountXOffset, 5 + rollCountYOffset)
+	frame.disenchantButton.text:Point("CENTER", 1 + rollCountXOffset, 4 + rollCountYOffset)
+	frame.passButton.text:Point("CENTER", 1 + rollCountXOffset, 2 + rollCountYOffset)
 
 	frame.bindText = frame:CreateFontString()
 	frame.bindText:Point("LEFT", frame.passButton, "RIGHT", 2, 0)
-	frame.bindText:FontTemplate(nil, nil, "OUTLINE")
+	frame.bindText:FontTemplate(font, fontSize, fontOutline)
 
 	local itemName = frame:CreateFontString(nil, "ARTWORK")
-	itemName:FontTemplate(nil, nil, "OUTLINE")
+	itemName:FontTemplate(font, fontSize, fontOutline)
 	itemName:Point("LEFT", frame.bindText, "RIGHT", 1, 0)
 	itemName:Point("RIGHT", frame, "RIGHT", -5, 0)
+	itemName:Size(200, 10)
 	itemName:SetJustifyH("LEFT")
 	frame.itemName = itemName
 
@@ -354,12 +515,32 @@ function M:ReleaseFrame(frame)
 	frame:Hide()
 	frame.rollID = nil
 	frame.rollTime = nil
+	frame.isTest = nil
+	frame.qualityColor = nil
+
+	frame:StopMovingOrSizing()
+	frame:ClearAllPoints()
+	local prevFrame
+	for idx, f in ipairs(self.RollBars) do
+		if f == frame then
+			if idx > 1 then prevFrame = self.RollBars[idx - 1] end
+			break
+		end
+	end
+	local anchor = (prevFrame and prevFrame ~= frame) and prevFrame or AlertFrameHolder
+
+	if POSITION == "TOP" then
+		frame:Point("TOP", anchor, "BOTTOM", 0, -4)
+	else
+		frame:Point("BOTTOM", anchor, "TOP", 0, 4)
+	end
 
 	for i = 0, 3 do
 		frame.rollButtons[i].text:SetText("")
 	end
 
 	twipe(frame.rollResults)
+	AlertFrame_FixAnchors()
 end
 
 function M:GetFrame()
@@ -393,8 +574,9 @@ function M:START_LOOT_ROLL(_, rollID, rollTime)
 	f.status:SetValue(rollTime)
 
 	local color = ITEM_QUALITY_COLORS[quality]
-	f.status:SetStatusBarColor(color.r, color.g, color.b, 0.7)
-	f.status.bg:SetTexture(color.r, color.g, color.b)
+	f.qualityColor = color
+
+	ApplyLootRollBackdrop(f, color)
 
 	f.bindText:SetText(bindOnPickUp and "BoP" or "BoE")
 	f.bindText:SetVertexColor(bindOnPickUp and 1 or 0.3, bindOnPickUp and 0.3 or 1, bindOnPickUp and 0.1 or 0.3)
@@ -441,10 +623,39 @@ function M:ParseRollChoice(msg)
 end
 
 function M:CHAT_MSG_LOOT(_, msg)
+	if not msg then return end
+
+	local hasActiveRoll = false
+	for _, frame in ipairs(self.RollBars) do
+		if frame.rollID then
+			hasActiveRoll = true
+			break
+		end
+	end
+	if not hasActiveRoll then return end
+
 	local playerName, itemName, rollType = self:ParseRollChoice(msg)
 
 	if playerName and itemName then
-		local _, class = UnitClass(playerName)
+		local class
+		if playerName == E.myname then
+			class = E.myclass
+		else
+			for i = 1, GetNumRaidMembers() do
+				if UnitName("raid"..i) == playerName then
+					class = select(2, UnitClass("raid"..i))
+					break
+				end
+			end
+			if not class then
+				for i = 1, GetNumPartyMembers() do
+					if UnitName("party"..i) == playerName then
+						class = select(2, UnitClass("party"..i))
+						break
+					end
+				end
+			end
+		end
 
 		for _, frame in ipairs(self.RollBars) do
 			if frame.rollID and frame.itemButton.link == itemName and not frame.rollResults[playerName] then
