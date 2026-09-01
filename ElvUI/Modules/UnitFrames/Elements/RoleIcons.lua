@@ -4,7 +4,6 @@ local UF = E:GetModule("UnitFrames")
 --Lua functions
 local random = math.random
 --WoW API / Variables
-local UnitGroupRolesAssigned = UnitGroupRolesAssigned
 local UnitIsConnected = UnitIsConnected
 
 function UF:Construct_RoleIcon(frame)
@@ -33,8 +32,9 @@ function UF:UpdateRoleIcon(event)
 		return
 	end
 
-	local isTank, isHealer, isDamage = UnitGroupRolesAssigned(self.unit)
-	local role = isTank and "TANK" or isHealer and "HEALER" or isDamage and "DAMAGER" or "NONE"
+	-- E:GetUnitRole is the 3-role wrapper over UnitGroupRolesAssigned
+	-- (TANK/HEALER/DAMAGER/NONE), cached with a 3s TTL and wiped on RDF/roster events.
+	local role = E:GetUnitRole(self.unit)
 	if self.isForced and role == "NONE" then
 		local rnd = random(1, 3)
 		role = rnd == 1 and "TANK" or (rnd == 2 and "HEALER" or (rnd == 3 and "DAMAGER"))

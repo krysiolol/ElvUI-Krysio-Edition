@@ -11,6 +11,11 @@ P.general = {
 	stickyFrames = true,
 	loginmessage = true,
 	interruptAnnounce = "NONE",
+	questAnnounce = {
+		enable = true,
+		every = 0,
+		debug = false
+	},
 	autoRepair = "NONE",
 	autoRoll = false,
 	autoAcceptInvite = false,
@@ -1263,6 +1268,10 @@ P.unitframe = {
 	targetOnMouseDown = false,
 	auraBlacklistModifier = "SHIFT",
 	thinBorders = false,
+	roleSortOrderParty = "TANK,HEALER,DAMAGER,NONE",
+	roleSortOrderRaid = "TANK,HEALER,DAMAGER,NONE",
+	roleSortPlayerSeparatelyParty = false,
+	roleSortPlayerSeparatelyRaid = false,
 	cooldown = {
 		override = true,
 		reverse = false,
@@ -1371,6 +1380,14 @@ P.unitframe = {
 			personal = {r = 0, g = 1, b = 0.5, a = 0.25},
 			others = {r = 0, g = 1, b = 0, a = 0.25},
 			maxOverflow = 0
+		},
+		healAbsorbs = {
+			absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6},
+			absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6},
+			absorbPlayerOutline = "NONE",
+			absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1},
+			absorbOtherOutline = "NONE",
+			absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1},
 		},
 		classResources = {
 			comboPoints = {

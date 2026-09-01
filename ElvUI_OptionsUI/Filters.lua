@@ -1367,6 +1367,439 @@ local function UpdateFilterGroup()
 	end
 
 	UF:Update_AllFrames()
+	if UpdateRecentAurasGroup then UpdateRecentAurasGroup() end -- recolor tracker rows for the new filter
+end
+
+local function OpenChatWithText(text)
+	if not text then return end
+	text = tostring(text)
+
+	if ChatFrame_OpenChat then
+		ChatFrame_OpenChat(text)
+	elseif DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.editBox then
+		local editBox = DEFAULT_CHAT_FRAME.editBox
+		editBox:Show()
+		editBox:SetText(text)
+		editBox:HighlightText()
+		editBox:SetFocus()
+	end
+	E:Print(format("Pasted spell ID |cff00ff00%s|r into chat edit box", text))
+end
+
+local function AddSpellToSelectedFilter(spellId, spellName)
+	local spellIdNum = tonumber(spellId) or spellId
+	local name = spellName or GetSpellInfo(spellIdNum) or tostring(spellId)
+
+	if selectedFilter and E.global.unitframe.aurafilters[selectedFilter] then
+		if not E.global.unitframe.aurafilters[selectedFilter].spells[spellIdNum] then
+			E.global.unitframe.aurafilters[selectedFilter].spells[spellIdNum] = {
+				["enable"] = true,
+				["priority"] = 0,
+				["stackThreshold"] = 0
+			}
+		end
+		selectedSpell = GetSpellInfo(spellIdNum) and format("%s (%s)", GetSpellInfo(spellIdNum), spellIdNum) or tostring(spellIdNum)
+		E:Print(format("Added spell |cff00ff00%s|r (ID: %s) to filter |cff00ff00%s|r", name, spellId, selectedFilter))
+		UpdateFilterGroup()
+		UF:Update_AllFrames()
+		if UpdateRecentAurasGroup then UpdateRecentAurasGroup() end -- turn the row green immediately
+		if E.Libs and E.Libs.AceConfigRegistry then
+			E.Libs.AceConfigRegistry:NotifyChange("ElvUI")
+		end
+	elseif selectedFilter == "Debuff Highlight" then
+		E.global.unitframe.DebuffHighlightColors[spellIdNum] = {enable = true, style = "GLOW", color = {r = 0.8, g = 0, b = 0, a = 0.85}}
+		selectedSpell = GetSpellInfo(spellIdNum) and format("%s (%s)", GetSpellInfo(spellIdNum), spellIdNum) or tostring(spellIdNum)
+		E:Print(format("Added spell |cff00ff00%s|r (ID: %s) to filter |cff00ff00Debuff Highlight|r", name, spellId))
+		UpdateFilterGroup()
+		UF:Update_AllFrames()
+		if UpdateRecentAurasGroup then UpdateRecentAurasGroup() end -- turn the row green immediately
+		if E.Libs and E.Libs.AceConfigRegistry then
+			E.Libs.AceConfigRegistry:NotifyChange("ElvUI")
+		end
+	else
+		OpenChatWithText(spellId)
+		E:Print(L["Select a Filter in the dropdown above to automatically add spells to it."])
+	end
+end
+
+local AceGUI = E.Libs.AceGUI or LibStub("AceGUI-3.0")
+local activeAuraWidget = nil
+
+if AceGUI then
+	local Type, Version = "AuraTrackerColumns", 107
+
+	local methods = {
+		OnAcquire = function(self)
+			self.frame:SetHeight(380)
+			self.userdata = self.userdata or {}
+			self.user = self.userdata
+			self.events = self.events or {}
+			self.children = self.children or {}
+			activeAuraWidget = self
+			self:UpdateAuras()
+		end,
+		OnRelease = function(self)
+			if activeAuraWidget == self then activeAuraWidget = nil end
+			self.userdata = {}
+			self.user = self.userdata
+			self.events = {}
+			self.children = {}
+			self.frame:Hide()
+			self.frame:ClearAllPoints()
+		end,
+		ReleaseChildren = function(self)
+			self.children = self.children or {}
+			self.children = {}
+		end,
+		OnWidthSet = function(self, width)
+			self.frame:SetWidth(width)
+			self:ResizeColumns()
+		end,
+		OnHeightSet = function(self, height)
+			self.frame:SetHeight(height)
+		end,
+		GetWidth = function(self)
+			return self.frame:GetWidth() or 800
+		end,
+		GetHeight = function(self)
+			return self.frame:GetHeight() or 380
+		end,
+		SetWidth = function(self, width)
+			self.frame:SetWidth(width)
+			self:ResizeColumns()
+		end,
+		SetHeight = function(self, height)
+			self.frame:SetHeight(height)
+		end,
+		SetPoint = function(self, ...)
+			self.frame:SetPoint(...)
+		end,
+		ClearAllPoints = function(self)
+			self.frame:ClearAllPoints()
+		end,
+		Show = function(self)
+			self.frame:Show()
+		end,
+		Hide = function(self)
+			self.frame:Hide()
+		end,
+		SetParent = function(self, parent)
+			local parentFrame = (type(parent) == "table" and parent.frame) or parent
+			if parentFrame then
+				self.frame:SetParent(parentFrame)
+			end
+		end,
+		AddChild = function(self, child)
+			self.children = self.children or {}
+			if child then
+				table.insert(self.children, child)
+				if type(child) == "table" and child.frame then
+					child.frame:SetParent(self.frame)
+				end
+			end
+		end,
+		PauseLayout = function(self) end,
+		ResumeLayout = function(self) end,
+		DoLayout = function(self) end,
+		SetLayout = function(self, layout) end,
+		SetTitle = function(self, text) end,
+		SetText = function(self, text) end,
+		SetLabel = function(self, text) end,
+		SetFont = function(self, ...) end,
+		SetFontObject = function(self, ...) end,
+		SetColor = function(self, ...) end,
+		SetJustifyH = function(self, ...) end,
+		SetJustifyV = function(self, ...) end,
+		SetDisabled = function(self, disabled) end,
+		SetUserData = function(self, key, value)
+			self.userdata = self.userdata or {}
+			self.userdata[key] = value
+			self.user = self.userdata
+		end,
+		GetUserData = function(self, key)
+			if self.userdata then
+				return self.userdata[key]
+			end
+		end,
+		GetUserDataTable = function(self)
+			self.userdata = self.userdata or {}
+			self.user = self.userdata
+			return self.userdata
+		end,
+		SetCallback = function(self, name, func)
+			if type(self.events) ~= "table" then
+				self.events = {}
+			end
+			self.events[name] = func
+		end,
+		Fire = function(self, name, ...)
+			if type(self.events) == "table" and self.events[name] then
+				self.events[name](self, name, ...)
+			end
+		end,
+	}
+
+	local function ResizeColumns(self)
+		local totalWidth = self.frame:GetWidth() or 800
+		local spacing = 8
+		local colWidth = math.max(140, math.floor((totalWidth - (spacing * 3) - 16) / 4))
+		for i = 1, 4 do
+			local col = self.columns[i]
+			if col then
+				col:SetWidth(colWidth)
+				col:SetPoint("TOPLEFT", self.frame, "TOPLEFT", (i - 1) * (colWidth + spacing), -20)
+			end
+		end
+	end
+
+	local function UpdateAuras(self)
+		if E.AuraTracker and E.AuraTracker.RebuildLists then
+			E.AuraTracker:RebuildLists() -- lazy sort: arrays are only built when this UI renders
+		end
+		local maxDuration = E.global.unitframe.auraTrackerMaxDuration or 0
+		local hideNoDuration = E.global.unitframe.auraTrackerHideNoDuration or false
+
+		local categories = {
+			{ name = "Player Buffs", list = E.AuraTracker and E.AuraTracker.playerBuffs },
+			{ name = "Player Debuffs", list = E.AuraTracker and E.AuraTracker.playerDebuffs },
+			{ name = "Group Buffs", list = E.AuraTracker and E.AuraTracker.groupBuffs },
+			{ name = "Group Debuffs", list = E.AuraTracker and E.AuraTracker.groupDebuffs },
+		}
+
+		for cIdx, cat in ipairs(categories) do
+			local col = self.columns[cIdx]
+			local content = col.content
+
+			if content.rows then
+				for _, r in ipairs(content.rows) do
+					r:Hide()
+				end
+			end
+			content.rows = {}
+
+			local filtered = {}
+			if cat.list then
+				for _, item in ipairs(cat.list) do
+					local pass = true
+					if hideNoDuration and (not item.duration or item.duration == 0) then pass = false end
+					if maxDuration > 0 and item.duration and item.duration > 0 and item.duration > maxDuration then pass = false end
+					if pass then table.insert(filtered, item) end
+				end
+			end
+
+			if #filtered == 0 then
+				local emptyText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+				emptyText:SetPoint("TOPLEFT", content, "TOPLEFT", 6, -6)
+				emptyText:SetText("No auras recorded.")
+				emptyText:SetTextColor(0.5, 0.5, 0.5)
+				table.insert(content.rows, emptyText)
+			else
+				local yOffset = -2
+				for rIdx, item in ipairs(filtered) do
+					local row = CreateFrame("Button", nil, content)
+					row:SetHeight(24)
+					row:SetPoint("TOPLEFT", content, "TOPLEFT", 2, yOffset)
+					row:SetPoint("TOPRIGHT", content, "TOPRIGHT", -2, yOffset)
+
+					local hl = row:CreateTexture(nil, "HIGHLIGHT")
+					hl:SetAllPoints()
+					hl:SetTexture("Interface\\Buttons\\UI-ListHighlight")
+
+					local icon = row:CreateTexture(nil, "ARTWORK")
+					icon:SetSize(20, 20)
+					icon:SetPoint("LEFT", row, "LEFT", 2, 0)
+					icon:SetTexture(item.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+					icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+					local durationText = ""
+					if item.duration and item.duration > 0 then
+						if item.duration >= 60 then
+							durationText = format(" |cff00ff00(%dm)|r", math.floor(item.duration / 60))
+						else
+							durationText = format(" |cff00ff00(%ds)|r", item.duration)
+						end
+					end
+
+					-- Color the name by its status in the currently selected filter:
+					-- green = in a Whitelist-type filter (enabled), red = in a
+					-- Blacklist-type filter (enabled), yellow = present but disabled.
+					local nameColor = "|cffffffff"
+					local curFilter = selectedFilter and E.global.unitframe.aurafilters[selectedFilter]
+					local curSpells = curFilter and curFilter.spells
+					if curSpells then
+						local entry = curSpells[item.spellId] or curSpells[item.name]
+						if entry then
+							local enabled = (type(entry) ~= "table" and entry and true) or (type(entry) == "table" and entry.enable ~= false)
+							if not enabled then
+								nameColor = "|cffcccc33"
+							elseif curFilter.type == "Blacklist" then
+								nameColor = "|cffff4444"
+							else
+								nameColor = "|cff33ff33"
+							end
+						end
+					end
+
+					local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+					label:SetPoint("LEFT", icon, "RIGHT", 4, 0)
+					label:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+					label:SetJustifyH("LEFT")
+					label:SetText(format("%s%s|r%s |cff999999(%d)|r", nameColor, item.name, durationText, item.spellId))
+
+					row:EnableMouse(true)
+					row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+					row:SetScript("OnClick", function(self, button)
+						if button == "RightButton" or IsShiftKeyDown() then
+							OpenChatWithText(item.spellId)
+						else
+							AddSpellToSelectedFilter(item.spellId, item.name)
+						end
+					end)
+
+					row:SetScript("OnEnter", function(self)
+						GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+						GameTooltip:ClearLines()
+
+						local setTooltip = false
+						if item.unit and item.index then
+							local bName, _, _, _, _, _, _, _, _, _, bSpellId
+							if item.isDebuff then
+								bName, _, _, _, _, _, _, _, _, _, bSpellId = UnitDebuff(item.unit, item.index)
+							else
+								bName, _, _, _, _, _, _, _, _, _, bSpellId = UnitBuff(item.unit, item.index)
+							end
+
+							if bName == item.name or bSpellId == item.spellId then
+								if item.isDebuff then
+									GameTooltip:SetUnitDebuff(item.unit, item.index)
+								else
+									GameTooltip:SetUnitBuff(item.unit, item.index)
+								end
+								setTooltip = true
+							end
+						end
+
+						-- Fallback: player buff search
+						if not setTooltip then
+							local bIdx = 1
+							while true do
+								local bName, _, _, _, _, _, _, _, _, _, bSpellId = UnitBuff("player", bIdx)
+								if not bName then break end
+								if bSpellId == item.spellId or bName == item.name then
+									GameTooltip:SetUnitBuff("player", bIdx)
+									setTooltip = true
+									break
+								end
+								bIdx = bIdx + 1
+							end
+						end
+
+						-- Fallback: player debuff search
+						if not setTooltip then
+							local bIdx = 1
+							while true do
+								local bName, _, _, _, _, _, _, _, _, _, bSpellId = UnitDebuff("player", bIdx)
+								if not bName then break end
+								if bSpellId == item.spellId or bName == item.name then
+									GameTooltip:SetUnitDebuff("player", bIdx)
+									setTooltip = true
+									break
+								end
+								bIdx = bIdx + 1
+							end
+						end
+
+						-- Final fallback: spell hyperlink
+						if not setTooltip and item.spellId then
+							GameTooltip:SetHyperlink("spell:" .. item.spellId)
+						end
+
+						GameTooltip:AddLine(" ")
+						GameTooltip:AddLine("|cff00ff00Left-Click:|r Add to selected filter", 1, 1, 1)
+						GameTooltip:AddLine("|cff00ff00Right-Click / Shift-Click:|r Paste ID into chat box", 1, 1, 1)
+						GameTooltip:Show()
+					end)
+					row:SetScript("OnLeave", function()
+						GameTooltip:Hide()
+					end)
+
+					table.insert(content.rows, row)
+					yOffset = yOffset - 25
+				end
+				content:SetHeight(math.abs(yOffset) + 6)
+			end
+		end
+	end
+
+	local function Constructor()
+		local num = AceGUI:GetNextWidgetNum(Type)
+		local frame = CreateFrame("Frame", "AceGUI" .. Type .. num, UIParent)
+		frame:Hide()
+		frame:SetHeight(380)
+
+		local widget = {
+			frame = frame,
+			type = Type,
+			userdata = {},
+			user = {},
+			events = {},
+			children = {},
+			columns = {},
+			ResizeColumns = ResizeColumns,
+			UpdateAuras = UpdateAuras,
+		}
+		widget.user = widget.userdata
+
+		for method, func in pairs(methods) do
+			widget[method] = func
+		end
+
+		local S = E:GetModule("Skins")
+		local catNames = { "Player Buffs", "Player Debuffs", "Group Buffs", "Group Debuffs" }
+		for i = 1, 4 do
+			local col = CreateFrame("Frame", nil, frame)
+			col:SetHeight(350)
+			if E.template then col:SetTemplate("Transparent") end
+
+			local header = col:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+			header:SetPoint("BOTTOMLEFT", col, "TOPLEFT", 4, 4)
+			header:SetText(catNames[i])
+			header:SetTextColor(1, 0.82, 0)
+			col.header = header
+
+			local sfName = "AceGUI" .. Type .. num .. "Col" .. i .. "Scroll"
+			local sf = CreateFrame("ScrollFrame", sfName, col, "UIPanelScrollFrameTemplate")
+			sf:SetPoint("TOPLEFT", col, "TOPLEFT", 4, -4)
+			sf:SetPoint("BOTTOMRIGHT", col, "BOTTOMRIGHT", -22, 4)
+
+			if S and S.HandleScrollBar then
+				local sb = _G[sfName .. "ScrollBar"]
+				if sb then S:HandleScrollBar(sb) end
+			end
+
+			local content = CreateFrame("Frame", nil, sf)
+			content:SetSize(180, 340)
+			sf:SetScrollChild(content)
+			col.content = content
+			col.scrollFrame = sf
+
+			widget.columns[i] = col
+		end
+
+		frame:SetScript("OnSizeChanged", function()
+			widget:ResizeColumns()
+		end)
+
+		return widget
+	end
+
+	AceGUI:RegisterWidgetType(Type, Constructor, Version)
+end
+
+function UpdateRecentAurasGroup()
+	if activeAuraWidget and activeAuraWidget.UpdateAuras then
+		activeAuraWidget:UpdateAuras()
+	end
 end
 
 E.Options.args.filters = {
@@ -1417,6 +1850,7 @@ E.Options.args.filters = {
 				end
 				quickSearchText = ""
 				UpdateFilterGroup()
+				if UpdateRecentAurasGroup then UpdateRecentAurasGroup() end -- recolor tracker rows for the new filter
 			end,
 			values = function()
 				local filters = {}
@@ -1450,6 +1884,138 @@ E.Options.args.filters = {
 			end,
 			disabled = function() return G.unitframe.aurafilters[selectedFilter] end,
 			hidden = function() return selectedFilter == nil end
+		},
+		absorbEngine = {
+			order = 99,
+			type = "group",
+			name = L["Absorb Shields Engine"],
+			guiInline = true,
+			args = {
+				desc = {
+					order = 0,
+					type = "description",
+					name = L["Shields are recognized from the 'Absorb Shields' filter (whitelist). Discovery scans tooltips of unknown buffs to auto-detect new shields - it costs performance, so it is disabled in raids by default. Curate the whitelist with the Recent Auras Tracker, then leave discovery off."],
+				},
+				discoverySolo = {
+					order = 1,
+					type = "toggle",
+					name = L["Discover While Solo"],
+					desc = L["Tooltip-scan unknown buffs to detect new absorb shields while not in a group."],
+					get = function(info) return E.global.unitframe.absorbDiscoverySolo ~= false end,
+					set = function(info, value) E.global.unitframe.absorbDiscoverySolo = value end,
+				},
+				discoveryParty = {
+					order = 2,
+					type = "toggle",
+					name = L["Discover In Party"],
+					desc = L["Tooltip-scan unknown buffs to detect new absorb shields while in a party."],
+					get = function(info) return E.global.unitframe.absorbDiscoveryParty ~= false end,
+					set = function(info, value) E.global.unitframe.absorbDiscoveryParty = value end,
+				},
+				discoveryRaid = {
+					order = 3,
+					type = "toggle",
+					name = L["Discover In Raid"],
+					desc = L["Tooltip-scan unknown buffs to detect new absorb shields while in a raid. Expensive at raid scale - leave off unless curating the whitelist."],
+					get = function(info) return E.global.unitframe.absorbDiscoveryRaid == true end,
+					set = function(info, value) E.global.unitframe.absorbDiscoveryRaid = value end,
+				},
+				trustNative = {
+					order = 4,
+					type = "toggle",
+					name = L["Trust Native Absorb API"],
+					desc = L["Skip ALL buff scanning whenever UnitGetTotalAbsorbs() reports zero. Large raid performance win. Test on your realm first: if any shield stops displaying while active, the API misses it - turn this back off."],
+					get = function(info) return E.global.unitframe.absorbTrustNative == true end,
+					set = function(info, value) E.global.unitframe.absorbTrustNative = value end,
+				},
+			},
+		},
+		recentAuras = {
+			order = 100,
+			type = "group",
+			name = L["Recent Auras Tracker"],
+			guiInline = true,
+			args = {
+				legend = {
+					order = -1,
+					type = "description",
+					name = L["Aura names are colored by the filter selected above: |cff33ff33green|r = in a whitelist, |cffff4444red|r = in a blacklist, |cffcccc33yellow|r = in the filter but disabled. Left-click a row to add it to the selected filter."],
+				},
+				enableTracker = {
+					order = 0,
+					type = "toggle",
+					name = L["Enable"],
+					desc = L["Enable or disable the Recent Auras Tracker."],
+					get = function(info)
+						if E.global.unitframe.auraTrackerEnable == nil then return true end
+						return E.global.unitframe.auraTrackerEnable
+					end,
+					set = function(info, value)
+						E.global.unitframe.auraTrackerEnable = value
+						if E.AuraTracker and E.AuraTracker.UpdateRegistration then
+							E.AuraTracker:UpdateRegistration() -- unregister UNIT_AURA entirely while disabled
+						end
+						if UpdateRecentAurasGroup then UpdateRecentAurasGroup() end
+					end,
+				},
+				maxDuration = {
+					order = 1,
+					type = "range",
+					name = L["Max Duration (Sec)"],
+					desc = L["Filter out auras with a duration longer than this number of seconds. Set to 0 to show all durations."],
+					disabled = function() return E.global.unitframe.auraTrackerEnable == false end,
+					min = 0, max = 3600, step = 5,
+					get = function(info) return E.global.unitframe.auraTrackerMaxDuration or 0 end,
+					set = function(info, value)
+						E.global.unitframe.auraTrackerMaxDuration = value
+						UpdateRecentAurasGroup()
+					end,
+				},
+				hideNoDuration = {
+					order = 2,
+					type = "toggle",
+					name = L["Hide Permanent Auras"],
+					desc = L["Hide auras that have no duration (passive stances, permanent buffs/debuffs)."],
+					disabled = function() return E.global.unitframe.auraTrackerEnable == false end,
+					get = function(info) return E.global.unitframe.auraTrackerHideNoDuration or false end,
+					set = function(info, value)
+						E.global.unitframe.auraTrackerHideNoDuration = value
+						UpdateRecentAurasGroup()
+					end,
+				},
+				onlyInGroup = {
+					order = 3,
+					type = "toggle",
+					name = L["Only Record Group Members"],
+					desc = L["Only record group buffs and debuffs when in a party or raid (prevents recording random players in town)."],
+					disabled = function() return E.global.unitframe.auraTrackerEnable == false end,
+					get = function(info)
+						if E.global.unitframe.auraTrackerOnlyInGroup == nil then return true end
+						return E.global.unitframe.auraTrackerOnlyInGroup
+					end,
+					set = function(info, value)
+						E.global.unitframe.auraTrackerOnlyInGroup = value
+						UpdateRecentAurasGroup()
+					end,
+				},
+				refresh = {
+					order = 4,
+					type = "execute",
+					name = L["Refresh Lists"],
+					disabled = function() return E.global.unitframe.auraTrackerEnable == false end,
+					func = function()
+						if UpdateRecentAurasGroup then UpdateRecentAurasGroup() end
+					end,
+				},
+				grid = {
+					order = 10,
+					type = "description",
+					dialogControl = "AuraTrackerColumns",
+					name = "",
+					hidden = function() return E.global.unitframe.auraTrackerEnable == false end,
+					width = "full",
+				},
+			}
 		}
 	}
 }
@@ -1457,5 +2023,8 @@ E.Options.args.filters = {
 function E:SetToFilterConfig(filter)
 	selectedFilter = filter or "Buff Indicator"
 	UpdateFilterGroup()
+	UpdateRecentAurasGroup()
 	E.Libs.AceConfigDialog:SelectGroup("ElvUI", "filters")
 end
+
+UpdateRecentAurasGroup()

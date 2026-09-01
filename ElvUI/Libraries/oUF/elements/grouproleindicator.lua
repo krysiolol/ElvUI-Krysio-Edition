@@ -80,11 +80,14 @@ local function Enable(self)
 		element.__owner = self
 		element.ForceUpdate = ForceUpdate
 
-		if(self.unit == 'player') then
-			self:RegisterEvent('PLAYER_ROLES_ASSIGNED', Path, true)
-		else
-			self:RegisterEvent('PARTY_MEMBERS_CHANGED', Path, true)
-		end
+		-- Register on ALL frames so party/raid icons refresh on RDF role
+		-- changes, not just when the local player's role changes.
+		self:RegisterEvent('PLAYER_ROLES_ASSIGNED', Path, true)
+		self:RegisterEvent('LFG_ROLE_UPDATE', Path, true)
+		self:RegisterEvent('ROLE_CHANGED_INFORM', Path, true)
+		self:RegisterEvent('PARTY_MEMBERS_CHANGED', Path, true)
+		self:RegisterEvent('RAID_ROSTER_UPDATE', Path, true)
+		self:RegisterEvent('PLAYER_ENTERING_WORLD', Path, true)
 
 		if(element:IsObjectType('Texture') and not element:GetTexture()) then
 			element:SetTexture([[Interface\LFGFrame\UI-LFG-ICON-PORTRAITROLES]])
@@ -100,7 +103,11 @@ local function Disable(self)
 		element:Hide()
 
 		self:UnregisterEvent('PLAYER_ROLES_ASSIGNED', Path)
+		self:UnregisterEvent('LFG_ROLE_UPDATE', Path)
+		self:UnregisterEvent('ROLE_CHANGED_INFORM', Path)
 		self:UnregisterEvent('PARTY_MEMBERS_CHANGED', Path)
+		self:UnregisterEvent('RAID_ROSTER_UPDATE', Path)
+		self:UnregisterEvent('PLAYER_ENTERING_WORLD', Path)
 	end
 end
 

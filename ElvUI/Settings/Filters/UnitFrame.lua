@@ -603,29 +603,19 @@ G.unitframe.AuraBarColors = {
 
 -- Damage absorb shields recognized by the absorb engine (Core/AbsorbEngine.lua).
 -- Editable in Filters config; the Recent Auras Tracker makes adding new shields easy.
--- Name keys are used because Ascension spell IDs vary between reworks.
+-- Native WotLK 3.3.5a absorb shields (Ascension/CoA spells removed for standard realm).
+-- Name keys are used because spell IDs vary between ranks/reworks.
 G.unitframe.aurafilters["Absorb Shields"] = {
 	type = "Whitelist",
 	spells = {
-		["Power Word: Shield"] = Defaults(),
-		["Void Shield"] = Defaults(),
-		["Forbidden Ritual"] = Defaults(),
-		["Hateforged Barrier"] = Defaults(),
-		["Phoenix Shield"] = Defaults(),
-		["Sacred Shield"] = Defaults(),
+		["Anti-Magic Shell"] = Defaults(),
+		["Blood Shield"] = Defaults(),
+		["Divine Aegis"] = Defaults(),
 		["Ice Barrier"] = Defaults(),
 		["Mana Shield"] = Defaults(),
-		["Anti-Magic Shell"] = Defaults(),
+		["Power Word: Shield"] = Defaults(),
+		["Sacred Shield"] = Defaults(),
 		["Savage Defense"] = Defaults(),
-		["Divine Aegis"] = Defaults(),
-		["Blood Shield"] = Defaults(),
-		["Protection"] = Defaults(),
-		["Illuminated Healing"] = Defaults(),
-		["Guard"] = Defaults(),
-		["Fire Ward"] = Defaults(),
-		["Frost Ward"] = Defaults(),
-		["Shadow Ward"] = Defaults(),
-		["Arcane Barrier"] = Defaults(),
 	},
 }
 

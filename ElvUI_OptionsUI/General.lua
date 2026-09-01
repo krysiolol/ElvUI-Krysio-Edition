@@ -821,6 +821,33 @@ E.Options.args.general = {
 					name = L["Auto Greed/DE"],
 					desc = L["Automatically select greed or disenchant (when available) on green quality items. This will only work if you are the max level."],
 					disabled = function() return not E.private.general.lootRoll end
+				},
+				questAnnounce = {
+					order = 10,
+					type = "group",
+					name = "Quest Announce",
+					guiInline = true,
+					get = function(info) return E.db.general.questAnnounce[info[#info]] end,
+					set = function(info, value)
+						E.db.general.questAnnounce[info[#info]] = value
+						Misc:ToggleQuestAnnounce()
+					end,
+					args = {
+						enable = {
+							order = 1,
+							type = "toggle",
+							name = L["Enable"],
+							desc = "Enables/Disables Quest Announce to Party chat.",
+						},
+						every = {
+							order = 2,
+							type = "range",
+							name = "Announce Every",
+							desc = "Announce progression every x number of steps (0 will announce on quest objective completion only).",
+							min = 0, max = 10, step = 1,
+							disabled = function() return not E.db.general.questAnnounce.enable end,
+						},
+					},
 				}
 			}
 		}
