@@ -2182,7 +2182,26 @@ local function GetOptionsTable_HealPrediction(updateFunc, groupName, numGroup)
 		type = "group",
 		name = L["Heal Prediction"],
 		desc = L["Show an incoming heal prediction bar on the unitframe. Also display a slightly different colored bar for incoming overheals."],
-		get = function(info) return E.db.unitframe.units[groupName].healPrediction[info[#info]] end,
+		get = function(info)
+			local val = E.db.unitframe.units[groupName].healPrediction[info[#info]]
+			if val == nil then
+				if info[#info] == "absorbsEnable" then return true
+				elseif info[#info] == "absorbsPersonalOnly" then return false
+				elseif info[#info] == "showAbsorbIcons" then return true
+				elseif info[#info] == "absorbIconSize" then return 12
+				elseif info[#info] == "absorbIconXOffset" then return 0
+				elseif info[#info] == "absorbIconYOffset" then return 0
+				elseif info[#info] == "showAbsorbText" then return true
+				elseif info[#info] == "shortAbsorbText" then return true
+				elseif info[#info] == "absorbTextXOffset" then return 0
+				elseif info[#info] == "absorbTextYOffset" then return 0
+				elseif info[#info] == "absorbSeparatorWidth" then return 1.5
+				elseif info[#info] == "absorbSeparatorAlpha" then return 0.6
+				elseif info[#info] == "absorbPulse" then return false
+				end
+			end
+			return val
+		end,
 		set = function(info, value) E.db.unitframe.units[groupName].healPrediction[info[#info]] = value updateFunc(UF, groupName, numGroup) end,
 		args = {
 			header = {
@@ -2201,6 +2220,155 @@ local function GetOptionsTable_HealPrediction(updateFunc, groupName, numGroup)
 				name = L["COLORS"],
 				func = function() ACD:SelectGroup("ElvUI", "unitframe", "generalOptionsGroup", "allColorsGroup", "healPrediction") end,
 				disabled = function() return not E.UnitFrames.Initialized end
+			},
+			absorbsEnable = {
+				order = 4,
+				type = "toggle",
+				name = L["Enable Absorbs"],
+				desc = L["Display shield/absorb amounts on the health bar."]
+			},
+			absorbsPersonalOnly = {
+				order = 5,
+				type = "toggle",
+				name = L["Personal Shields Only"],
+				desc = L["Only display shields cast by yourself."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			showAbsorbIcons = {
+				order = 6,
+				type = "toggle",
+				name = L["Show Absorb Icons"],
+				desc = L["Display spell icons on the absorb segments."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			absorbIconSize = {
+				order = 6,
+				type = "range",
+				name = L["Absorb Icon Size"],
+				min = 6, max = 24, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local iconShow = (db.showAbsorbIcons == nil or db.showAbsorbIcons == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and iconShow)
+				end
+			},
+			absorbIconXOffset = {
+				order = 7,
+				type = "range",
+				name = L["Icon X-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local iconShow = (db.showAbsorbIcons == nil or db.showAbsorbIcons == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and iconShow)
+				end
+			},
+			absorbIconYOffset = {
+				order = 8,
+				type = "range",
+				name = L["Icon Y-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local iconShow = (db.showAbsorbIcons == nil or db.showAbsorbIcons == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and iconShow)
+				end
+			},
+			showAbsorbText = {
+				order = 9,
+				type = "toggle",
+				name = L["Show Absorb Values"],
+				desc = L["Display absorb value text on the segments."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			shortAbsorbText = {
+				order = 10,
+				type = "toggle",
+				name = L["Short Value Format"],
+				desc = L["Display absorb values in short format (e.g. 1.5k) instead of full format (e.g. 1470)."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local valShow = (db.showAbsorbText == nil or db.showAbsorbText == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and valShow)
+				end
+			},
+			absorbTextXOffset = {
+				order = 11,
+				type = "range",
+				name = L["Text X-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local valShow = (db.showAbsorbText == nil or db.showAbsorbText == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and valShow)
+				end
+			},
+			absorbTextYOffset = {
+				order = 12,
+				type = "range",
+				name = L["Text Y-Offset"],
+				min = -50, max = 50, step = 1,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					local valShow = (db.showAbsorbText == nil or db.showAbsorbText == true)
+					local absEnable = (db.absorbsEnable == nil or db.absorbsEnable == true)
+					return not (absEnable and valShow)
+				end
+			},
+			absorbSeparatorWidth = {
+				order = 13,
+				type = "range",
+				name = L["Divider Line Width"],
+				min = 0, max = 5, step = 0.5,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			absorbSeparatorAlpha = {
+				order = 14,
+				type = "range",
+				name = L["Divider Line Opacity"],
+				min = 0, max = 1, step = 0.05,
+				isPercent = true,
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			absorbPulse = {
+				order = 15,
+				type = "toggle",
+				name = L["Enable Pulse Animation"],
+				desc = L["Gently pulse the opacity of the active shield segments."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
+			},
+			clampAbsorbs = {
+				order = 16,
+				type = "toggle",
+				name = L["Never Overflow Unit Frame"],
+				desc = L["Clamp and scale active shields so they never extend outside the unit frame bounds."],
+				disabled = function()
+					local db = E.db.unitframe.units[groupName].healPrediction
+					return not (db.absorbsEnable == nil or db.absorbsEnable == true)
+				end
 			}
 		}
 	}
@@ -3839,6 +4007,106 @@ E.Options.args.unitframe = {
 									get = function(info) return E.db.unitframe.colors.healPrediction.maxOverflow end,
 									set = function(info, value) E.db.unitframe.colors.healPrediction.maxOverflow = value UF:Update_AllFrames() end
 								}
+							}
+						},
+						healAbsorbs = {
+							order = 9,
+							type = "group",
+							name = "Heal Absorbs",
+							get = function(info)
+								if not E.db.unitframe.colors.healAbsorbs then
+									E.db.unitframe.colors.healAbsorbs = {}
+								end
+								local hAbs = E.db.unitframe.colors.healAbsorbs
+								if not hAbs.absorbPlayer then hAbs.absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6} end
+								if not hAbs.absorbOther then hAbs.absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6} end
+								if not hAbs.absorbPlayerOutline then hAbs.absorbPlayerOutline = "NONE" end
+								if not hAbs.absorbPlayerOutlineColor then hAbs.absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+								if not hAbs.absorbOtherOutline then hAbs.absorbOtherOutline = "NONE" end
+								if not hAbs.absorbOtherOutlineColor then hAbs.absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+
+								local optionName = info[#info]
+								if optionName == "absorbPlayerOutline" or optionName == "absorbOtherOutline" then
+									return hAbs[optionName]
+								else
+									local t = hAbs[optionName]
+									local d = P.unitframe.colors.healAbsorbs[optionName]
+									return t.r, t.g, t.b, t.a, d.r, d.g, d.b, d.a
+								end
+							end,
+							set = function(info, ...)
+								if not E.db.unitframe.colors.healAbsorbs then
+									E.db.unitframe.colors.healAbsorbs = {}
+								end
+								local hAbs = E.db.unitframe.colors.healAbsorbs
+								if not hAbs.absorbPlayer then hAbs.absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6} end
+								if not hAbs.absorbOther then hAbs.absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6} end
+								if not hAbs.absorbPlayerOutline then hAbs.absorbPlayerOutline = "NONE" end
+								if not hAbs.absorbPlayerOutlineColor then hAbs.absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+								if not hAbs.absorbOtherOutline then hAbs.absorbOtherOutline = "NONE" end
+								if not hAbs.absorbOtherOutlineColor then hAbs.absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1} end
+
+								local optionName = info[#info]
+								if optionName == "absorbPlayerOutline" or optionName == "absorbOtherOutline" then
+									local value = ...
+									hAbs[optionName] = value
+								else
+									local r, g, b, a = ...
+									local t = hAbs[optionName]
+									t.r, t.g, t.b, t.a = r, g, b, a
+								end
+								UF:Update_AllFrames()
+							end,
+							args = {
+								header = {
+									order = 1,
+									type = "header",
+									name = "Heal Absorbs"
+								},
+								absorbPlayer = {
+									order = 2,
+									type = "color",
+									name = "My Shields Color",
+									hasAlpha = true
+								},
+								absorbOther = {
+									order = 3,
+									type = "color",
+									name = "Other Shields Color",
+									hasAlpha = true
+								},
+								absorbPlayerOutline = {
+									order = 4,
+									type = "select",
+									name = "My Shields Outline Effect",
+									values = {
+										["NONE"] = L["None"],
+										["SOLID"] = "Solid Line",
+										["GLOW"] = "Soft Pulsing Glow"
+									}
+								},
+								absorbPlayerOutlineColor = {
+									order = 5,
+									type = "color",
+									name = "My Shields Outline Color",
+									hasAlpha = true
+								},
+								absorbOtherOutline = {
+									order = 6,
+									type = "select",
+									name = "Other Shields Outline Effect",
+									values = {
+										["NONE"] = L["None"],
+										["SOLID"] = "Solid Line",
+										["GLOW"] = "Soft Pulsing Glow"
+									}
+								},
+								absorbOtherOutlineColor = {
+									order = 7,
+									type = "color",
+									name = "Other Shields Outline Color",
+									hasAlpha = true
+								},
 							}
 						},
 						debuffHighlight = {

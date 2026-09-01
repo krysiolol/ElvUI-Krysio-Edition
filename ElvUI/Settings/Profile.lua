@@ -1372,6 +1372,14 @@ P.unitframe = {
 			others = {r = 0, g = 1, b = 0, a = 0.25},
 			maxOverflow = 0
 		},
+		healAbsorbs = {
+			absorbPlayer = {r = 0.3, g = 0.7, b = 1.0, a = 0.6},
+			absorbOther = {r = 0.5, g = 0.5, b = 1.0, a = 0.6},
+			absorbPlayerOutline = "NONE",
+			absorbPlayerOutlineColor = {r = 1, g = 1, b = 1, a = 1},
+			absorbOtherOutline = "NONE",
+			absorbOtherOutlineColor = {r = 1, g = 1, b = 1, a = 1},
+		},
 		classResources = {
 			comboPoints = {
 				[1] = {r = 0.69, g = 0.31, b = 0.31},

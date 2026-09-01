@@ -60,25 +60,16 @@ local scannerTooltip = _G.ElvUI_ShieldScannerTooltip or CreateFrame("GameTooltip
 
 -- Built-in fallback whitelist. The user-editable "Absorb Shields" aura filter
 -- (Filters config) takes precedence over this list in both directions.
+-- Native WotLK 3.3.5a absorb shields (Ascension/CoA spells removed for standard realm).
 local KNOWN_SHIELDS = {
-	["Power Word: Shield"] = true,
-	["Void Shield"] = true,
-	["Forbidden Ritual"] = true,
-	["Hateforged Barrier"] = true,
-	["Phoenix Shield"] = true,
-	["Sacred Shield"] = true,
+	["Anti-Magic Shell"] = true,
+	["Blood Shield"] = true,
+	["Divine Aegis"] = true,
 	["Ice Barrier"] = true,
 	["Mana Shield"] = true,
-	["Anti-Magic Shell"] = true,
+	["Power Word: Shield"] = true,
+	["Sacred Shield"] = true,
 	["Savage Defense"] = true,
-	["Divine Aegis"] = true,
-	["Blood Shield"] = true,
-	["Protection"] = true,
-	["Illuminated Healing"] = true,
-	["Guard"] = true,
-	["Fire Ward"] = true,
-	["Frost Ward"] = true,
-	["Shadow Ward"] = true,
 }
 Engine.KNOWN_SHIELDS = KNOWN_SHIELDS
 
@@ -297,34 +288,22 @@ local function ScanUnit(unit, personalOnly, totalNativeAbsorb)
 
 		if (not personalOnly or isPlayerCaster) and workCount < MAX_SHIELDS then
 			local entryAdded = false
-			-- Special case: Arcane Barrier absorbs 10% of caster max mana
-			if name == "Arcane Barrier" or spellId == 1112478 then
-				local caster = unitCaster or "player"
-				local maxMana = UnitManaMax(caster) or 0
-				local amount = floor(maxMana * 0.10)
-				if amount <= 0 then amount = 1000 end
-				local entry = WorkEntry()
-				entry.name, entry.icon, entry.spellId, entry.amount, entry.isPlayer, entry.isFallback = name, icon, spellId, amount, isPlayerCaster, false
-				totalParsed = totalParsed + amount
-				entryAdded = true
-			else
-				local classified = ClassifyBuff(name, spellId)
+			local classified = ClassifyBuff(name, spellId)
 
-				if classified == nil and discovery and not tooltipScannedThisCall and totalNativeAbsorb > 0 then
-					-- Unknown buff while the unit has active absorbs: try to classify it (max 1 tooltip scan per update)
-					local isShield, parsedAmount = DiscoverBuff(unit, i, name)
-					if isShield ~= nil then tooltipScannedThisCall = true end
-					if isShield then
-						local entry = WorkEntry()
-						entry.name, entry.icon, entry.spellId, entry.amount, entry.isPlayer, entry.isFallback = name, icon, spellId, parsedAmount or 0, isPlayerCaster, false
-						if parsedAmount then totalParsed = totalParsed + parsedAmount end
-						entryAdded = true
-					end
-				elseif classified == true then
+			if classified == nil and discovery and not tooltipScannedThisCall and totalNativeAbsorb > 0 then
+				-- Unknown buff while the unit has active absorbs: try to classify it (max 1 tooltip scan per update)
+				local isShield, parsedAmount = DiscoverBuff(unit, i, name)
+				if isShield ~= nil then tooltipScannedThisCall = true end
+				if isShield then
 					local entry = WorkEntry()
-					entry.name, entry.icon, entry.spellId, entry.amount, entry.isPlayer, entry.isFallback = name, icon, spellId, 0, isPlayerCaster, false
+					entry.name, entry.icon, entry.spellId, entry.amount, entry.isPlayer, entry.isFallback = name, icon, spellId, parsedAmount or 0, isPlayerCaster, false
+					if parsedAmount then totalParsed = totalParsed + parsedAmount end
 					entryAdded = true
 				end
+			elseif classified == true then
+				local entry = WorkEntry()
+				entry.name, entry.icon, entry.spellId, entry.amount, entry.isPlayer, entry.isFallback = name, icon, spellId, 0, isPlayerCaster, false
+				entryAdded = true
 			end
 
 			if entryAdded and expirationTime and expirationTime > 0 then
