@@ -11,6 +11,11 @@ P.general = {
 	stickyFrames = true,
 	loginmessage = true,
 	interruptAnnounce = "NONE",
+	questAnnounce = {
+		enable = true,
+		every = 0,
+		debug = false
+	},
 	autoRepair = "NONE",
 	autoRoll = false,
 	autoAcceptInvite = false,

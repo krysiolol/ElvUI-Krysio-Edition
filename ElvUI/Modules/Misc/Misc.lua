@@ -329,6 +329,7 @@ function M:Initialize()
 	self:LoadRaidMarker()
 	self:LoadLoot()
 	self:LoadLootRoll()
+	self:LoadQuestAnnounce()
 	self:LoadChatBubbles()
 
 	self:ToggleErrorHandling()
