@@ -1076,6 +1076,10 @@ P.chat = {
 	shortChannels = true,
 	hyperlinkHover = true,
 	throttleInterval = 30,
+	-- PR2: chat-filter BEGIN
+	multiChannelDeduplicate = false,
+	multiChannelInterval = 15,
+	-- PR2: chat-filter END
 	scrollDownInterval = 15,
 	fade = true,
 	inactivityTimer = 120,
