@@ -98,7 +98,8 @@ local function SetTemplate(frame, template, glossTex, ignoreUpdates, forcePixelM
 
 		frame:SetBackdropColor(backdropr, backdropg, backdropb, backdropa)
 
-		if not E.PixelMode and not frame.forcePixelMode then
+		local notPixelMode = not isUnitFrameElement and not E.PixelMode
+		if notPixelMode and not frame.forcePixelMode then
 			if not frame.iborder then
 				local border = CreateFrame("Frame", nil, frame)
 				border:SetInside(frame, E.mult, E.mult)
