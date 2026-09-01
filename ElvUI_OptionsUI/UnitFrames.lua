@@ -13,6 +13,91 @@ local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 
 local ACD = E.Libs.AceConfigDialog
 
+local roleTextures = {
+	TANK = "Interface\\AddOns\\ElvUI\\media\\textures\\tank",
+	HEALER = "Interface\\AddOns\\ElvUI\\media\\textures\\healer",
+	DAMAGER = "Interface\\AddOns\\ElvUI\\media\\textures\\dps",
+	PLAYER = "Interface\\Icons\\Ability_CharacterFrame_Portrait",
+	NONE = "Interface\\Icons\\INV_Misc_QuestionMark"
+}
+
+local function GetRoleSortString(group)
+	local order
+	if group == "party" then
+		order = E.db.unitframe.roleSortOrderParty or "TANK,HEALER,DAMAGER,NONE"
+	else
+		order = E.db.unitframe.roleSortOrderRaid or "TANK,HEALER,DAMAGER,NONE"
+	end
+	if order == "" then order = "TANK,HEALER,DAMAGER,NONE" end
+	return order
+end
+
+local function GetAllowedRoles(group)
+	local sep
+	if group == "party" then
+		sep = E.db.unitframe.roleSortPlayerSeparatelyParty
+	else
+		sep = E.db.unitframe.roleSortPlayerSeparatelyRaid
+	end
+	if sep then
+		return {"TANK", "HEALER", "DAMAGER", "PLAYER", "NONE"}
+	else
+		return {"TANK", "HEALER", "DAMAGER", "NONE"}
+	end
+end
+
+local function GetRoleAtSlot(group, slotIndex)
+	local order = GetRoleSortString(group)
+	order = string.upper(order):gsub("%s+", ""):gsub("DPS", "DAMAGER")
+	local parts = { strsplit(",", order) }
+	local allowed = GetAllowedRoles(group)
+	local allowedMap = {}
+	for _, r in ipairs(allowed) do allowedMap[r] = true end
+
+	local seen = {}
+	local cleanParts = {}
+	for _, p in ipairs(parts) do
+		if allowedMap[p] and not seen[p] then
+			seen[p] = true
+			tinsert(cleanParts, p)
+		end
+	end
+	for _, r in ipairs(allowed) do
+		if not seen[r] then
+			tinsert(cleanParts, r)
+		end
+	end
+	return cleanParts[slotIndex]
+end
+
+local function SetRoleAtSlot(group, slotIndex, newRole)
+	local allowed = GetAllowedRoles(group)
+	local current = {}
+	for i = 1, #allowed do
+		current[i] = GetRoleAtSlot(group, i)
+	end
+	local oldIndex
+	for i = 1, #allowed do
+		if current[i] == newRole then
+			oldIndex = i
+			break
+		end
+	end
+	if oldIndex then
+		local temp = current[slotIndex]
+		current[slotIndex] = current[oldIndex]
+		current[oldIndex] = temp
+	end
+
+	if group == "party" then
+		E.db.unitframe.roleSortOrderParty = tconcat(current, ",")
+	else
+		E.db.unitframe.roleSortOrderRaid = tconcat(current, ",")
+	end
+	UF:UpdateAllHeaders()
+	UF:QueueRoleSortUpdate()
+end
+
 local positionValues = {
 	TOPLEFT = "TOPLEFT",
 	LEFT = "LEFT",
@@ -6599,64 +6684,254 @@ E.Options.args.unitframe.args.party = {
 					}
 				},
 				sortingGroup = {
-					order = 300,
-					type = "group",
-					guiInline = true,
-					name = L["Grouping & Sorting"],
-					set = function(info, value) E.db.unitframe.units.party[info[#info]] = value UF:CreateAndUpdateHeaderGroup("party", nil, nil, true) end,
-					args = {
-						groupBy = {
-							order = 1,
-							type = "select",
-							name = L["Group By"],
-							desc = L["Set the order that the group will sort."],
-							values = {
-								["CLASS"] = L["CLASS"],
-								["NAME"] = L["NAME"],
-								["MTMA"] = L["Main Tanks / Main Assist"],
-								["GROUP"] = L["GROUP"]
+						order = 300,
+						type = "group",
+						guiInline = true,
+						name = L["Grouping & Sorting"],
+						set = function(info, value) E.db.unitframe.units.party[info[#info]] = value UF:CreateAndUpdateHeaderGroup("party", nil, nil, true) end,
+						args = {
+							groupBy = {
+								order = 1,
+								type = "select",
+								name = L["Group By"],
+								desc = L["Set the order that the group will sort."],
+								values = {
+									["CLASS"] = L["CLASS"],
+									["ASSIGNEDROLE"] = L["ROLE"],
+									["NAME"] = L["NAME"],
+									["MTMA"] = L["Main Tanks / Main Assist"],
+									["GROUP"] = L["GROUP"]
+								}
+							},
+							sortDir = {
+								order = 2,
+								type = "select",
+								name = L["Sort Direction"],
+								desc = L["Defines the sort order of the selected sort method."],
+								values = {
+									["ASC"] = L["Ascending"],
+									["DESC"] = L["Descending"]
+								}
+							},
+							spacer = {
+								order = 3,
+								type = "description",
+								width = "full",
+								name = " "
+							},
+							roleSortOrder = {
+								order = 4,
+								type = "group",
+								name = "Role Sort Order",
+								guiInline = true,
+								hidden = function() return E.db.unitframe.units.party.groupBy ~= "ASSIGNEDROLE" end,
+								args = {
+									roleSortPlayerSeparatelyParty = {
+										order = 0,
+										type = "toggle",
+										name = "Sort Player Separately",
+										desc = "If enabled, the player (Me) can be sorted separately from their active role.",
+										get = function(info) return E.db.unitframe.roleSortPlayerSeparatelyParty end,
+										set = function(info, value) E.db.unitframe.roleSortPlayerSeparatelyParty = value UF:UpdateAllHeaders() end,
+										width = "full",
+									},
+									slot1_img = {
+										order = 1,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 1)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot1 = {
+										order = 2,
+										type = "select",
+										name = "1st Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 1) end,
+										set = function(info, value) SetRoleAtSlot("party", 1, value) end,
+									},
+									slot1_spacer = {
+										order = 3,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot2_img = {
+										order = 4,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 2)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot2 = {
+										order = 5,
+										type = "select",
+										name = "2nd Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 2) end,
+										set = function(info, value) SetRoleAtSlot("party", 2, value) end,
+									},
+									slot2_spacer = {
+										order = 6,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot3_img = {
+										order = 7,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 3)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot3 = {
+										order = 8,
+										type = "select",
+										name = "3rd Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 3) end,
+										set = function(info, value) SetRoleAtSlot("party", 3, value) end,
+									},
+									slot3_spacer = {
+										order = 9,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot4_img = {
+										order = 10,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 4)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot4 = {
+										order = 11,
+										type = "select",
+										name = "4th Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 4) end,
+										set = function(info, value) SetRoleAtSlot("party", 4, value) end,
+									},
+									slot4_spacer = {
+										order = 12,
+										type = "description",
+										name = "",
+										width = "full",
+									},
+									slot5_img = {
+										order = 13,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 5)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+									},
+									slot5 = {
+										order = 14,
+										type = "select",
+										name = "5th Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 5) end,
+										set = function(info, value) SetRoleAtSlot("party", 5, value) end,
+									},
+									slot5_spacer = {
+										order = 15,
+										type = "description",
+										name = "",
+										width = "full",
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+									},
+									slot6_img = {
+										order = 16,
+										type = "description",
+										name = "",
+										image = function() return roleTextures[GetRoleAtSlot("party", 6)] end,
+										imageWidth = 24,
+										imageHeight = 24,
+										width = "half",
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+									},
+									slot6 = {
+										order = 17,
+										type = "select",
+										name = "6th Priority",
+										values = {
+											TANK = L["TANK"],
+											HEALER = L["HEALER"],
+											DAMAGER = L["DAMAGER"],
+											PLAYER = "Player (Me)",
+											NONE = L["NONE"],
+										},
+										get = function(info) return GetRoleAtSlot("party", 6) end,
+										set = function(info, value) SetRoleAtSlot("party", 6, value) end,
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+									},
+								}
+							},
+							raidWideSorting = {
+								order = 4,
+								type = "toggle",
+								name = L["Raid-Wide Sorting"],
+								desc = L["Enabling this allows raid-wide sorting however you will not be able to distinguish between groups."]
+							},
+							invertGroupingOrder = {
+								order = 5,
+								type = "toggle",
+								name = L["Invert Grouping Order"],
+								desc = L["Enabling this inverts the grouping order when the raid is not full, this will reverse the direction it starts from."],
+								disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
+							},
+							startFromCenter = {
+								order = 6,
+								type = "toggle",
+								name = L["Start Near Center"],
+								desc = L["The initial group will start near the center and grow out."],
+								disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
 							}
-						},
-						sortDir = {
-							order = 2,
-							type = "select",
-							name = L["Sort Direction"],
-							desc = L["Defines the sort order of the selected sort method."],
-							values = {
-								["ASC"] = L["Ascending"],
-								["DESC"] = L["Descending"]
-							}
-						},
-						spacer = {
-							order = 3,
-							type = "description",
-							width = "full",
-							name = " "
-						},
-						raidWideSorting = {
-							order = 4,
-							type = "toggle",
-							name = L["Raid-Wide Sorting"],
-							desc = L["Enabling this allows raid-wide sorting however you will not be able to distinguish between groups."]
-						},
-						invertGroupingOrder = {
-							order = 5,
-							type = "toggle",
-							name = L["Invert Grouping Order"],
-							desc = L["Enabling this inverts the grouping order when the raid is not full, this will reverse the direction it starts from."],
-							disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
-						},
-						startFromCenter = {
-							order = 6,
-							type = "toggle",
-							name = L["Start Near Center"],
-							desc = L["The initial group will start near the center and grow out."],
-							disabled = function() return not E.db.unitframe.units.party.raidWideSorting end
 						}
 					}
 				}
-			}
-		},
+			},
 		buffIndicator = {
 			order = 600,
 			type = "group",
@@ -7209,6 +7484,7 @@ E.Options.args.unitframe.args.raid = {
 							desc = L["Set the order that the group will sort."],
 							values = {
 								["CLASS"] = L["CLASS"],
+								["ASSIGNEDROLE"] = L["ROLE"],
 								["NAME"] = L["NAME"],
 								["MTMA"] = L["Main Tanks / Main Assist"],
 								["GROUP"] = L["GROUP"]
@@ -7229,6 +7505,195 @@ E.Options.args.unitframe.args.raid = {
 							type = "description",
 							width = "full",
 							name = " "
+						},
+						roleSortOrder = {
+							order = 4,
+							type = "group",
+							name = "Role Sort Order",
+							guiInline = true,
+							hidden = function() return E.db.unitframe.units.raid.groupBy ~= "ASSIGNEDROLE" end,
+							args = {
+								roleSortPlayerSeparatelyRaid = {
+									order = 0,
+									type = "toggle",
+									name = "Sort Player Separately",
+									desc = "If enabled, the player (Me) can be sorted separately from their active role.",
+									get = function(info) return E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									set = function(info, value) E.db.unitframe.roleSortPlayerSeparatelyRaid = value UF:UpdateAllHeaders() end,
+									width = "full",
+								},
+								slot1_img = {
+									order = 1,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 1)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot1 = {
+									order = 2,
+									type = "select",
+									name = "1st Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 1) end,
+									set = function(info, value) SetRoleAtSlot("raid", 1, value) end,
+								},
+								slot1_spacer = {
+									order = 3,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot2_img = {
+									order = 4,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 2)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot2 = {
+									order = 5,
+									type = "select",
+									name = "2nd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 2) end,
+									set = function(info, value) SetRoleAtSlot("raid", 2, value) end,
+								},
+								slot2_spacer = {
+									order = 6,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot3_img = {
+									order = 7,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 3)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot3 = {
+									order = 8,
+									type = "select",
+									name = "3rd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 3) end,
+									set = function(info, value) SetRoleAtSlot("raid", 3, value) end,
+								},
+								slot3_spacer = {
+									order = 9,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot4_img = {
+									order = 10,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 4)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot4 = {
+									order = 11,
+									type = "select",
+									name = "4th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 4) end,
+									set = function(info, value) SetRoleAtSlot("raid", 4, value) end,
+								},
+								slot4_spacer = {
+									order = 12,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot5_img = {
+									order = 13,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 5)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot5 = {
+									order = 14,
+									type = "select",
+									name = "5th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 5) end,
+									set = function(info, value) SetRoleAtSlot("raid", 5, value) end,
+								},
+								slot5_spacer = {
+									order = 15,
+									type = "description",
+									name = "",
+									width = "full",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6_img = {
+									order = 16,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 6)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6 = {
+									order = 17,
+									type = "select",
+									name = "6th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 6) end,
+									set = function(info, value) SetRoleAtSlot("raid", 6, value) end,
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+							}
 						},
 						raidWideSorting = {
 							order = 4,
@@ -7629,6 +8094,7 @@ E.Options.args.unitframe.args.raid40 = {
 							desc = L["Set the order that the group will sort."],
 							values = {
 								["CLASS"] = L["CLASS"],
+								["ASSIGNEDROLE"] = L["ROLE"],
 								["NAME"] = L["NAME"],
 								["MTMA"] = L["Main Tanks / Main Assist"],
 								["GROUP"] = L["GROUP"]
@@ -7649,6 +8115,195 @@ E.Options.args.unitframe.args.raid40 = {
 							type = "description",
 							width = "full",
 							name = " "
+						},
+						roleSortOrder = {
+							order = 4,
+							type = "group",
+							name = "Role Sort Order",
+							guiInline = true,
+							hidden = function() return E.db.unitframe.units.raid40.groupBy ~= "ASSIGNEDROLE" end,
+							args = {
+								roleSortPlayerSeparatelyRaid = {
+									order = 0,
+									type = "toggle",
+									name = "Sort Player Separately",
+									desc = "If enabled, the player (Me) can be sorted separately from their active role.",
+									get = function(info) return E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									set = function(info, value) E.db.unitframe.roleSortPlayerSeparatelyRaid = value UF:UpdateAllHeaders() end,
+									width = "full",
+								},
+								slot1_img = {
+									order = 1,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 1)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot1 = {
+									order = 2,
+									type = "select",
+									name = "1st Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 1) end,
+									set = function(info, value) SetRoleAtSlot("raid", 1, value) end,
+								},
+								slot1_spacer = {
+									order = 3,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot2_img = {
+									order = 4,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 2)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot2 = {
+									order = 5,
+									type = "select",
+									name = "2nd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 2) end,
+									set = function(info, value) SetRoleAtSlot("raid", 2, value) end,
+								},
+								slot2_spacer = {
+									order = 6,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot3_img = {
+									order = 7,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 3)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot3 = {
+									order = 8,
+									type = "select",
+									name = "3rd Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 3) end,
+									set = function(info, value) SetRoleAtSlot("raid", 3, value) end,
+								},
+								slot3_spacer = {
+									order = 9,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot4_img = {
+									order = 10,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 4)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot4 = {
+									order = 11,
+									type = "select",
+									name = "4th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 4) end,
+									set = function(info, value) SetRoleAtSlot("raid", 4, value) end,
+								},
+								slot4_spacer = {
+									order = 12,
+									type = "description",
+									name = "",
+									width = "full",
+								},
+								slot5_img = {
+									order = 13,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 5)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+								},
+								slot5 = {
+									order = 14,
+									type = "select",
+									name = "5th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 5) end,
+									set = function(info, value) SetRoleAtSlot("raid", 5, value) end,
+								},
+								slot5_spacer = {
+									order = 15,
+									type = "description",
+									name = "",
+									width = "full",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6_img = {
+									order = 16,
+									type = "description",
+									name = "",
+									image = function() return roleTextures[GetRoleAtSlot("raid", 6)] end,
+									imageWidth = 24,
+									imageHeight = 24,
+									width = "half",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+								slot6 = {
+									order = 17,
+									type = "select",
+									name = "6th Priority",
+									values = {
+										TANK = L["TANK"],
+										HEALER = L["HEALER"],
+										DAMAGER = L["DAMAGER"],
+										PLAYER = "Player (Me)",
+										NONE = L["NONE"],
+									},
+									get = function(info) return GetRoleAtSlot("raid", 6) end,
+									set = function(info, value) SetRoleAtSlot("raid", 6, value) end,
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+								},
+							}
 						},
 						raidWideSorting = {
 							order = 4,
