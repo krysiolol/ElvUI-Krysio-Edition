@@ -2535,6 +2535,127 @@ local function GetOptionsTable_Cutaway(updateFunc, groupName, numGroup)
 	return config
 end
 
+-- PR3: unitframe-threat BEGIN
+local function GetOptionsTable_ThreatIndicator(updateFunc, groupName)
+	local config = {
+		order = 850,
+		type = "group",
+		name = L["Threat Indicator"],
+		get = function(info)
+			local key = info[#info]
+			local db = E.db.unitframe.units[groupName].threat
+			if not db then return end
+			local val = db[key]
+			if type(val) == "table" then
+				return val.r, val.g, val.b, val.a
+			else
+				return val
+			end
+		end,
+		set = function(info, value, g, b, a)
+			local key = info[#info]
+			local db = E.db.unitframe.units[groupName].threat
+			if not db then return end
+			if type(db[key]) == "table" then
+				db[key].r, db[key].g, db[key].b, db[key].a = value, g, b, a
+			else
+				db[key] = value
+			end
+			UF:UpdateThreatSettings(groupName)
+		end,
+		args = {
+			header = {
+				order = 1,
+				type = "header",
+				name = L["Threat Indicator"]
+			},
+			enable = {
+				order = 2,
+				type = "toggle",
+				name = L["Enable"]
+			},
+			size = {
+				order = 3,
+				type = "range",
+				name = L["Size"],
+				min = 6, max = 100, step = 1
+			},
+			attachTo = {
+				order = 4,
+				type = "select",
+				name = L["Attach To"],
+				values = attachToValues
+			},
+			position = {
+				order = 5,
+				type = "select",
+				name = L["Position"],
+				values = positionValues
+			},
+			xOffset = {
+				order = 6,
+				type = "range",
+				name = L["X-Offset"],
+				min = -300, max = 300, step = 1
+			},
+			yOffset = {
+				order = 7,
+				type = "range",
+				name = L["Y-Offset"],
+				min = -300, max = 300, step = 1
+			},
+			texture = {
+				order = 8,
+				type = "select",
+				dialogControl = "LSM30_Statusbar",
+				name = L["Texture"],
+				values = AceGUIWidgetLSMlists.statusbar
+			},
+			fontGroup = {
+				order = 20,
+				type = "group",
+				name = L["Text Settings"],
+				guiInline = true,
+				args = {
+					font = {
+						order = 1,
+						type = "select",
+						dialogControl = "LSM30_Font",
+						name = L["Font"],
+						values = AceGUIWidgetLSMlists.font
+					},
+					fontSize = {
+						order = 2,
+						type = "range",
+						name = L["Font Size"],
+						min = 4, max = 32, step = 1
+					},
+					fontOutline = {
+						order = 3,
+						type = "select",
+						name = L["Font Outline"],
+						values = {
+							["NONE"] = L["None"],
+							["OUTLINE"] = "OUTLINE",
+							["MONOCHROMEOUTLINE"] = "MONOCHROMEOUTLINE",
+							["THICKOUTLINE"] = "THICKOUTLINE"
+						}
+					},
+					textColor = {
+						order = 4,
+						type = "color",
+						name = L["Text Color"],
+						hasAlpha = true
+					}
+				}
+			}
+		}
+	}
+
+	return config
+end
+-- PR3: unitframe-threat END
+
 E.Options.args.unitframe = {
 	type = "group",
 	name = L["UnitFrames"],
@@ -3977,6 +4098,7 @@ E.Options.args.unitframe.args.player = {
 		aurabar = GetOptionsTable_AuraBars(UF.CreateAndUpdateUF, "player"),
 		raidicon = GetOptionsTable_RaidIcon(UF.CreateAndUpdateUF, "player"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUF, "player"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateUF, "player"),
 		classbar = {
 			order = 750,
 			type = "group",
@@ -4601,6 +4723,7 @@ E.Options.args.unitframe.args.target = {
 		aurabar = GetOptionsTable_AuraBars(UF.CreateAndUpdateUF, "target"),
 		raidicon = GetOptionsTable_RaidIcon(UF.CreateAndUpdateUF, "target"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUF, "target"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateUF, "target"),
 		GPSArrow = GetOptionsTableForNonGroup_GPS("target"),
 		combobar = {
 			order = 850,
@@ -5766,7 +5889,8 @@ E.Options.args.unitframe.args.boss = {
 		debuffs = GetOptionsTable_Auras("debuffs", UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
 		castbar = GetOptionsTable_Castbar(false, UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
 		raidicon = GetOptionsTable_RaidIcon(UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
-		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES)
+		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateUFGroup, "boss", MAX_BOSS_FRAMES),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateUFGroup, "boss"),
 	}
 }
 
@@ -6555,6 +6679,7 @@ E.Options.args.unitframe.args.party = {
 		readycheckIcon = GetOptionsTable_ReadyCheckIcon(UF.CreateAndUpdateHeaderGroup, "party"),
 		resurrectIcon = GetOptionsTable_ResurrectIcon(UF.CreateAndUpdateHeaderGroup, "party"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateHeaderGroup, "party"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateHeaderGroup, "party"),
 		GPSArrow = GetOptionsTable_GPS("party")
 	}
 }
@@ -6974,6 +7099,7 @@ E.Options.args.unitframe.args.raid = {
 		readycheckIcon = GetOptionsTable_ReadyCheckIcon(UF.CreateAndUpdateHeaderGroup, "raid"),
 		resurrectIcon = GetOptionsTable_ResurrectIcon(UF.CreateAndUpdateHeaderGroup, "raid"),
 		cutaway = GetOptionsTable_Cutaway(UF.CreateAndUpdateHeaderGroup, "raid"),
+		threat = GetOptionsTable_ThreatIndicator(UF.CreateAndUpdateHeaderGroup, "raid"),
 		GPSArrow = GetOptionsTable_GPS("raid")
 	}
 }
