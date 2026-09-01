@@ -18,17 +18,16 @@ local roleTextures = {
 	HEALER = "Interface\\AddOns\\ElvUI\\media\\textures\\healer",
 	DAMAGER = "Interface\\AddOns\\ElvUI\\media\\textures\\dps",
 	PLAYER = "Interface\\Icons\\Ability_CharacterFrame_Portrait",
-	NONE = "Interface\\Icons\\INV_Misc_QuestionMark"
 }
 
 local function GetRoleSortString(group)
 	local order
 	if group == "party" then
-		order = E.db.unitframe.roleSortOrderParty or "TANK,HEALER,DAMAGER,NONE"
+		order = E.db.unitframe.roleSortOrderParty or "TANK,HEALER,DAMAGER"
 	else
-		order = E.db.unitframe.roleSortOrderRaid or "TANK,HEALER,DAMAGER,NONE"
+		order = E.db.unitframe.roleSortOrderRaid or "TANK,HEALER,DAMAGER"
 	end
-	if order == "" then order = "TANK,HEALER,DAMAGER,NONE" end
+	if order == "" then order = "TANK,HEALER,DAMAGER" end
 	return order
 end
 
@@ -40,9 +39,9 @@ local function GetAllowedRoles(group)
 		sep = E.db.unitframe.roleSortPlayerSeparatelyRaid
 	end
 	if sep then
-		return {"TANK", "HEALER", "DAMAGER", "PLAYER", "NONE"}
+		return {"TANK", "HEALER", "DAMAGER", "PLAYER"}
 	else
-		return {"TANK", "HEALER", "DAMAGER", "NONE"}
+		return {"TANK", "HEALER", "DAMAGER"}
 	end
 end
 
@@ -6753,7 +6752,6 @@ E.Options.args.unitframe.args.party = {
 											HEALER = L["HEALER"],
 											DAMAGER = L["DAMAGER"],
 											PLAYER = "Player (Me)",
-											NONE = L["NONE"],
 										},
 										get = function(info) return GetRoleAtSlot("party", 1) end,
 										set = function(info, value) SetRoleAtSlot("party", 1, value) end,
@@ -6782,7 +6780,6 @@ E.Options.args.unitframe.args.party = {
 											HEALER = L["HEALER"],
 											DAMAGER = L["DAMAGER"],
 											PLAYER = "Player (Me)",
-											NONE = L["NONE"],
 										},
 										get = function(info) return GetRoleAtSlot("party", 2) end,
 										set = function(info, value) SetRoleAtSlot("party", 2, value) end,
@@ -6811,7 +6808,6 @@ E.Options.args.unitframe.args.party = {
 											HEALER = L["HEALER"],
 											DAMAGER = L["DAMAGER"],
 											PLAYER = "Player (Me)",
-											NONE = L["NONE"],
 										},
 										get = function(info) return GetRoleAtSlot("party", 3) end,
 										set = function(info, value) SetRoleAtSlot("party", 3, value) end,
@@ -6830,6 +6826,7 @@ E.Options.args.unitframe.args.party = {
 										imageWidth = 24,
 										imageHeight = 24,
 										width = "half",
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
 									},
 									slot4 = {
 										order = 11,
@@ -6840,16 +6837,17 @@ E.Options.args.unitframe.args.party = {
 											HEALER = L["HEALER"],
 											DAMAGER = L["DAMAGER"],
 											PLAYER = "Player (Me)",
-											NONE = L["NONE"],
 										},
 										get = function(info) return GetRoleAtSlot("party", 4) end,
 										set = function(info, value) SetRoleAtSlot("party", 4, value) end,
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
 									},
 									slot4_spacer = {
 										order = 12,
 										type = "description",
 										name = "",
 										width = "full",
+										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
 									},
 									slot5_img = {
 										order = 13,
@@ -6859,6 +6857,7 @@ E.Options.args.unitframe.args.party = {
 										imageWidth = 24,
 										imageHeight = 24,
 										width = "half",
+										hidden = function() return true end,
 									},
 									slot5 = {
 										order = 14,
@@ -6869,17 +6868,17 @@ E.Options.args.unitframe.args.party = {
 											HEALER = L["HEALER"],
 											DAMAGER = L["DAMAGER"],
 											PLAYER = "Player (Me)",
-											NONE = L["NONE"],
 										},
 										get = function(info) return GetRoleAtSlot("party", 5) end,
 										set = function(info, value) SetRoleAtSlot("party", 5, value) end,
+										hidden = function() return true end,
 									},
 									slot5_spacer = {
 										order = 15,
 										type = "description",
 										name = "",
 										width = "full",
-										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+										hidden = function() return true end,
 									},
 									slot6_img = {
 										order = 16,
@@ -6889,7 +6888,7 @@ E.Options.args.unitframe.args.party = {
 										imageWidth = 24,
 										imageHeight = 24,
 										width = "half",
-										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+										hidden = function() return true end,
 									},
 									slot6 = {
 										order = 17,
@@ -6900,11 +6899,10 @@ E.Options.args.unitframe.args.party = {
 											HEALER = L["HEALER"],
 											DAMAGER = L["DAMAGER"],
 											PLAYER = "Player (Me)",
-											NONE = L["NONE"],
 										},
 										get = function(info) return GetRoleAtSlot("party", 6) end,
 										set = function(info, value) SetRoleAtSlot("party", 6, value) end,
-										hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyParty end,
+										hidden = function() return true end,
 									},
 								}
 							},
@@ -7540,7 +7538,6 @@ E.Options.args.unitframe.args.raid = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 1) end,
 									set = function(info, value) SetRoleAtSlot("raid", 1, value) end,
@@ -7569,7 +7566,6 @@ E.Options.args.unitframe.args.raid = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 2) end,
 									set = function(info, value) SetRoleAtSlot("raid", 2, value) end,
@@ -7598,7 +7594,6 @@ E.Options.args.unitframe.args.raid = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 3) end,
 									set = function(info, value) SetRoleAtSlot("raid", 3, value) end,
@@ -7617,6 +7612,7 @@ E.Options.args.unitframe.args.raid = {
 									imageWidth = 24,
 									imageHeight = 24,
 									width = "half",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
 								},
 								slot4 = {
 									order = 11,
@@ -7627,16 +7623,17 @@ E.Options.args.unitframe.args.raid = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 4) end,
 									set = function(info, value) SetRoleAtSlot("raid", 4, value) end,
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
 								},
 								slot4_spacer = {
 									order = 12,
 									type = "description",
 									name = "",
 									width = "full",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
 								},
 								slot5_img = {
 									order = 13,
@@ -7646,6 +7643,7 @@ E.Options.args.unitframe.args.raid = {
 									imageWidth = 24,
 									imageHeight = 24,
 									width = "half",
+									hidden = function() return true end,
 								},
 								slot5 = {
 									order = 14,
@@ -7656,17 +7654,17 @@ E.Options.args.unitframe.args.raid = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 5) end,
 									set = function(info, value) SetRoleAtSlot("raid", 5, value) end,
+									hidden = function() return true end,
 								},
 								slot5_spacer = {
 									order = 15,
 									type = "description",
 									name = "",
 									width = "full",
-									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									hidden = function() return true end,
 								},
 								slot6_img = {
 									order = 16,
@@ -7676,7 +7674,7 @@ E.Options.args.unitframe.args.raid = {
 									imageWidth = 24,
 									imageHeight = 24,
 									width = "half",
-									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									hidden = function() return true end,
 								},
 								slot6 = {
 									order = 17,
@@ -7687,11 +7685,10 @@ E.Options.args.unitframe.args.raid = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 6) end,
 									set = function(info, value) SetRoleAtSlot("raid", 6, value) end,
-									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									hidden = function() return true end,
 								},
 							}
 						},
@@ -8150,7 +8147,6 @@ E.Options.args.unitframe.args.raid40 = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 1) end,
 									set = function(info, value) SetRoleAtSlot("raid", 1, value) end,
@@ -8179,7 +8175,6 @@ E.Options.args.unitframe.args.raid40 = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 2) end,
 									set = function(info, value) SetRoleAtSlot("raid", 2, value) end,
@@ -8208,7 +8203,6 @@ E.Options.args.unitframe.args.raid40 = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 3) end,
 									set = function(info, value) SetRoleAtSlot("raid", 3, value) end,
@@ -8227,6 +8221,7 @@ E.Options.args.unitframe.args.raid40 = {
 									imageWidth = 24,
 									imageHeight = 24,
 									width = "half",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
 								},
 								slot4 = {
 									order = 11,
@@ -8237,16 +8232,17 @@ E.Options.args.unitframe.args.raid40 = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 4) end,
 									set = function(info, value) SetRoleAtSlot("raid", 4, value) end,
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
 								},
 								slot4_spacer = {
 									order = 12,
 									type = "description",
 									name = "",
 									width = "full",
+									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
 								},
 								slot5_img = {
 									order = 13,
@@ -8256,6 +8252,7 @@ E.Options.args.unitframe.args.raid40 = {
 									imageWidth = 24,
 									imageHeight = 24,
 									width = "half",
+									hidden = function() return true end,
 								},
 								slot5 = {
 									order = 14,
@@ -8266,17 +8263,17 @@ E.Options.args.unitframe.args.raid40 = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 5) end,
 									set = function(info, value) SetRoleAtSlot("raid", 5, value) end,
+									hidden = function() return true end,
 								},
 								slot5_spacer = {
 									order = 15,
 									type = "description",
 									name = "",
 									width = "full",
-									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									hidden = function() return true end,
 								},
 								slot6_img = {
 									order = 16,
@@ -8286,7 +8283,7 @@ E.Options.args.unitframe.args.raid40 = {
 									imageWidth = 24,
 									imageHeight = 24,
 									width = "half",
-									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									hidden = function() return true end,
 								},
 								slot6 = {
 									order = 17,
@@ -8297,11 +8294,10 @@ E.Options.args.unitframe.args.raid40 = {
 										HEALER = L["HEALER"],
 										DAMAGER = L["DAMAGER"],
 										PLAYER = "Player (Me)",
-										NONE = L["NONE"],
 									},
 									get = function(info) return GetRoleAtSlot("raid", 6) end,
 									set = function(info, value) SetRoleAtSlot("raid", 6, value) end,
-									hidden = function() return not E.db.unitframe.roleSortPlayerSeparatelyRaid end,
+									hidden = function() return true end,
 								},
 							}
 						},
