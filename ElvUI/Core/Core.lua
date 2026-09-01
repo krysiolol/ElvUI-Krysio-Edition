@@ -1271,7 +1271,7 @@ function E:DBConversions()
 		end
 		E.db.unitframe.roleSortOrderParty = normalizeOrder(E.db.unitframe.roleSortOrderParty)
 		E.db.unitframe.roleSortOrderRaid = normalizeOrder(E.db.unitframe.roleSortOrderRaid)
-		if E:WipeUnitRoleCache then E:WipeUnitRoleCache() end
+		if E.WipeUnitRoleCache then E:WipeUnitRoleCache() end
 	end
 
 end
