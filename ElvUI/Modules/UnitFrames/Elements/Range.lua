@@ -39,7 +39,11 @@ function UF:UpdateRangeCheckSpells()
 end
 
 local function getUnit(unit)
-	if not find(unit, "party") or not find(unit, "raid") then
+	-- PR5 perf: only canonicalize the token when the unit is NEITHER party-
+	-- nor raid-shaped already. The legacy 'or' made this condition always true,
+	-- so every fader range check ran up to 44 UnitIsUnit calls (thousands/sec
+	-- at raid scale) even for units already named "raid17"/"party2".
+	if not find(unit, "party") and not find(unit, "raid") then
 		for i = 1, 4 do
 			if UnitIsUnit(unit, "party"..i) then
 				return "party"..i
