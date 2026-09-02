@@ -44,26 +44,23 @@ local VALID_TOKENS = {TANK = true, HEALER = true, DAMAGER = true, NONE = true, P
 local roleRank = {}
 local sortNames = {}
 local sortRanks = {}
-local memoOrderRaw, memoSeparate, memoGroupKind -- BuildRoleRank memo
+local memoOrderRaw, memoGroupKind -- BuildRoleRank memo
 
 -- Parses the user's role order CSV into roleRank[token] = position.
--- Returns whether the PLAYER slot is active for this group type.
 local function BuildRoleRank(groupName)
-	local order, separatePlayer
+	local order
 	if groupName == "party" then
 		order = E.db.unitframe.roleSortOrderParty
-		separatePlayer = E.db.unitframe.roleSortPlayerSeparatelyParty
 	else
 		order = E.db.unitframe.roleSortOrderRaid
-		separatePlayer = E.db.unitframe.roleSortPlayerSeparatelyRaid
 	end
-	-- The order string and player-slot flag almost never change between
-	-- ticks; skip the re-parse (string allocs + gmatch loop) when unchanged
+	-- The order string almost never changes between ticks; skip the
+	-- re-parse (string allocs + gmatch loop) when unchanged
 	local groupKind = (groupName == "party") and 1 or 2
-	if order == memoOrderRaw and separatePlayer == memoSeparate and groupKind == memoGroupKind then
-		return separatePlayer
+	if order == memoOrderRaw and groupKind == memoGroupKind then
+		return
 	end
-	memoOrderRaw, memoSeparate, memoGroupKind = order, separatePlayer, groupKind
+	memoOrderRaw, memoGroupKind = order, groupKind
 
 	if not order or order == "" then order = DEFAULT_ORDER end
 
@@ -74,7 +71,7 @@ local function BuildRoleRank(groupName)
 	twipe(roleRank)
 	local rank = 0
 	for token in gmatch(order, "[^,]+") do
-		if VALID_TOKENS[token] and not roleRank[token] and (token ~= "PLAYER" or separatePlayer) then
+		if VALID_TOKENS[token] and not roleRank[token] then
 			rank = rank + 1
 			roleRank[token] = rank
 		end
@@ -85,8 +82,6 @@ local function BuildRoleRank(groupName)
 	if not roleRank.HEALER then rank = rank + 1 roleRank.HEALER = rank end
 	if not roleRank.DAMAGER then rank = rank + 1 roleRank.DAMAGER = rank end
 	if not roleRank.NONE then rank = rank + 1 roleRank.NONE = rank end
-
-	return separatePlayer
 end
 
 -- Deterministic comparator: role bucket first, then alphabetical.
@@ -98,9 +93,9 @@ local function NameSort(a, b)
 	return a < b
 end
 
-local function AddMember(name, unit, separatePlayer, playerName)
+local function AddMember(name, unit, playerName)
 	local rank
-	if separatePlayer and name == playerName and roleRank.PLAYER then
+	if name == playerName and roleRank.PLAYER then
 		rank = roleRank.PLAYER
 	else
 		rank = roleRank[E:GetUnitRole(unit)] or roleRank.NONE
@@ -111,7 +106,7 @@ end
 
 local function BuildNameList(header)
 	local groupName = header.groupName
-	local separatePlayer = BuildRoleRank(groupName)
+	BuildRoleRank(groupName)
 	local playerName = UnitName("player")
 
 	twipe(sortNames)
@@ -123,19 +118,19 @@ local function BuildNameList(header)
 		for i = 1, numRaid do
 			local name, _, subgroup = GetRaidRosterInfo(i)
 			if name and (idx == 0 or subgroup == idx) then
-				AddMember(name, "raid"..i, separatePlayer, playerName)
+				AddMember(name, "raid"..i, playerName)
 			end
 		end
 	else
 		-- party header, or a raid-style header shown while only in a party
 		if header.roleSortShowPlayer ~= false and playerName then
-			AddMember(playerName, "player", separatePlayer, playerName)
+			AddMember(playerName, "player", playerName)
 		end
 		for i = 1, GetNumPartyMembers() do
 			local unit = "party"..i
 			local name = UnitName(unit)
 			if name then
-				AddMember(name, unit, separatePlayer, playerName)
+				AddMember(name, unit, playerName)
 			end
 		end
 	end
