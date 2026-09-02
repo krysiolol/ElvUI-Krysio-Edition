@@ -1,12 +1,10 @@
-# ElvUI-Grimfall
+# ElvUI Krysio Edition
 
-<p align="center">
-  <img width="412" height="219" alt="ElvUI-Grimfall" src="https://github.com/user-attachments/assets/f9932e7d-d127-43a7-aa8c-f204098271d3" />
-</p>
+**ElvUI** is a full user-interface replacement addon for World of Warcraft. It replaces the default UI with a modular, highly configurable layout for unit frames, action bars, chat, minimap, data texts and more — all in Lua, with no external dependencies.
 
-A fork of **ElvUI (WotLK 3.3.5a)** adapted for classless private servers, packed with the best quality-of-life features ported from the Ascension/Krysio forks plus the **ClickCast** addon.
+This fork is built for **WotLK 3.3.5a** and should work on any private server running that client. It includes classless-server adaptations originally developed for **Grimfall WoW** (where every character is flagged as `DRUID` regardless of abilities), plus quality-of-life improvements ported from the Ascension/Krysio forks and the **ClickCast** addon. It will most likely work on other custom or classless servers as well.
 
-On classless servers like **Grimfall WoW** every character is flagged as `DRUID` regardless of the abilities they use, which breaks ElvUI's class-based features. This fork adapts ElvUI to that environment and brings modern, advanced modules on top of it.
+> **Note:** This is an actively maintained project. You may encounter bugs on certain server configurations — improvements and fixes are released periodically.
 
 ---
 
@@ -46,7 +44,7 @@ A redesigned shared absorb-detection engine for Unit Frames and Nameplates: whit
 </p>
 
 ### 🧙 Spec Detection & RDF Role Sorting
-Automatic background spec inspection detects every Grimfall/Ascension support setup and assigns **Support** role icons in group frames and RDF. Replaces unstable hooks with a deterministic namelist sorter (`TANK`, `HEALER`, `DAMAGER`, `SUPPORT`) — no more mid-combat frame swapping.
+Automatic background spec inspection detects every Grimfall/Ascension support setup and assigns **Support** role icons in group frames and RDF. Replaces unstable hooks with a deterministic namelist sorter (`TANK`, `HEALER`, `DAMAGER`) — no more mid-combat frame swapping.
 
 <!-- 📸 Screenshot ready: replace the src below with your Spec Detection screenshot URL -->
 <p align="center">
@@ -65,6 +63,11 @@ The **Recent Auras** filter tracks buffs and debuffs applied on your character i
 Announce quest progress (earned XP, completed, accepted, etc.) to party or raid with configurable frequency and debug logging. Location: `General` ➔ `Quest Announce`.
 
 ### 🧟 Always-on Death Knight Runes
+
+<p align="center">
+  <img width="412" height="219" alt="ElvUI-Krysio-Edition" src="https://github.com/user-attachments/assets/f9932e7d-d127-43a7-aa8c-f204098271d3" />
+</p>
+
 The rune bar is built for every character with no class detection (since the server reports everyone as `DRUID`). It defaults to the top of the Player unit frame and shows the full 6-rune resource, with its own config section under `Unit Frames` ➔ `Player`. *(Grimfall server feature — by Valdstein.)*
 
 ---
@@ -82,7 +85,7 @@ The rune bar is built for every character with no class detection (since the ser
 
 - **Core.lua safety guard** — fixed invalid access to `WipeUnitRoleCache` so the role-sorting module initializes cleanly.
 - **Absorb separator rendering** — corrected the separator color call (`SetVertexColor`) for clean shield bar visuals.
-- Version string and TOC notes mark the build as the Grimfall fork.
+- Version string and TOC notes identify this as the Krysio Edition.
 
 ---
 
