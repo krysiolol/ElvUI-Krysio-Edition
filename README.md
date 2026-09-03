@@ -21,6 +21,8 @@ Click-to-cast with secure action buttons: bind spells to right/middle clicks on 
 ### 🎣 Customizable Loot Roll Window
 Personalize the loot roll frame: width, height, font family/size, outline, backdrop transparency and background color, with a built-in **Preview Loot Roll** button so you can see the result before it ever matters.
 
+Location: `General` ➔ `BlizzUI Improvements` ➔ **Loot Roll** (enable/disable) and **Loot Roll Options** (customization).
+
 ### ✉️ Cross-Channel Spam Filter & Fast URL Detection
 Smart cross-channel message deduplication blocks duplicated spam across every chat channel, while a fast URL checker exits instantly unless links (`://`, `www.`, `@`) are actually present. Toggle it from the chat options.
 
