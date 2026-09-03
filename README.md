@@ -23,6 +23,11 @@ Personalize the loot roll frame: width, height, font family/size, outline, backd
 
 Location: `General` ➔ `BlizzUI Improvements` ➔ **Loot Roll** (enable/disable) and **Loot Roll Options** (customization).
 
+<p align="center">
+  <img src="Media/screenshots/loot_roll.png" alt="Customizable Loot Roll Window" width="720" />
+</p>
+
+
 ### ✉️ Cross-Channel Spam Filter & Fast URL Detection
 Smart cross-channel message deduplication blocks duplicated spam across every chat channel, while a fast URL checker exits instantly unless links (`://`, `www.`, `@`) are actually present. Toggle it from the chat options.
 
