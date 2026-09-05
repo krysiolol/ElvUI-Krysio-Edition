@@ -77,6 +77,16 @@ Announce quest progress (earned XP, completed, accepted, etc.) to party or raid 
 
 The rune bar is built for every character with no class detection (since the server reports everyone as `DRUID`). It defaults to the top of the Player unit frame and shows the full 6-rune resource, with its own config section under `Unit Frames` ➔ `Player`. *(Grimfall server feature — by Valdstein.)*
 
+### ⏱️ Cooldown Manager
+A retail-style cooldown & buff tracker for WotLK: icon rows or draining status bars for your spells, trinkets and consumables, with keybind overlays, countdown timers, glow/audio ready alerts, click-to-cast, screen overlays (missing raid buffs checklist, aggro & range alerts), HoT indicators on unit frames and a personal resource bar.
+
+> **⚠️ Experimental:** This module is at a very early stage of development. You are welcome to use and test it — it will be updated and improved over time.
+
+<!-- 📸 Screenshot ready: replace the src below with your Cooldown Manager screenshot URL -->
+<p align="center">
+  <img src="Media/screenshots/cooldown_manager.png" alt="Cooldown Manager" width="720" />
+</p>
+
 ---
 
 ## ⚡ Performance Optimizations
@@ -98,7 +108,7 @@ The rune bar is built for every character with no class detection (since the ser
 
 ## 📦 Included addons
 
-ElvUI core plus the following companion plugins: AddOnSkins, AuraBarsMovers, BagControl, CastBarOverlay, CustomTags, CustomTweaks, DataTextColors, DTBars2, Enhanced, EnhancedFriendsList, ExtraActionBars, OptionsUI, RaidMarkers, SwingBar — and the included **ClickCast** addon.
+ElvUI core plus the following companion plugins: AddOnSkins, AuraBarsMovers, BagControl, CastBarOverlay, CooldownManager, CustomTags, CustomTweaks, DataTextColors, DTBars2, Enhanced, EnhancedFriendsList, ExtraActionBars, OptionsUI, RaidMarkers, SwingBar — and the included **ClickCast** addon.
 
 ## 📥 Installation
 
