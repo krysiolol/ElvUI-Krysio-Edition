@@ -836,6 +836,70 @@ function CM:InsertOptions()
 				},
 			},
 
+			-- Personal Power Bar tab ---------------------------------------------
+			powerBarsTab = {
+				order = 14,
+				type  = "group",
+				name  = "Power Bar",
+				disabled = IsModuleDisabled,
+				args  = {
+					header = { order=1, type="header", name="Personal Power Bar" },
+					enable = {
+						order=2, type="toggle", name="Enable Personal Power Bar",
+						desc="Show your primary resource (mana/rage/energy/runic power/focus/combo points) as a draggable colour-coded bar.",
+						width="full",
+						get=function() return E.db.cooldownManager.powerBars.enable end,
+						set=function(_, v) E.db.cooldownManager.powerBars.enable=v; if CM.PowerBars then CM.PowerBars:Update() end end,
+					},
+					desc = {
+						order=3, type="description",
+						name="A single bar for your own resource. MANA=blue, RAGE=red, ENERGY=yellow, RUNIC_POWER=cyan, FOCUS=purple, COMBO_POINTS=orange. Drag it using the ElvUI mover.",
+					},
+
+					dimGroup = {
+						order=10, type="group", inline=true, name="Dimensions",
+						args={
+							barWidth = {
+								order=1, type="range", name="Bar Width", min=60, max=500, step=1,
+								get=function() return E.db.cooldownManager.powerBars.barWidth end,
+								set=function(_, v) E.db.cooldownManager.powerBars.barWidth=v; if CM.PowerBars then CM.PowerBars:Update() end end,
+							},
+							barHeight = {
+								order=2, type="range", name="Bar Height", min=8, max=40, step=1,
+								get=function() return E.db.cooldownManager.powerBars.barHeight end,
+								set=function(_, v) E.db.cooldownManager.powerBars.barHeight=v; if CM.PowerBars then CM.PowerBars:Update() end end,
+							},
+						},
+					},
+
+					styleGroup = {
+						order=11, type="group", inline=true, name="Style",
+						args={
+							texture = {
+								order=1, type="select", dialogControl="LSM30_Statusbar", name="Status Bar Texture",
+								values=function() return E.LSM:HashTable("statusbar") end,
+								get=function() return E.db.cooldownManager.powerBars.texture end,
+								set=function(_, v) E.db.cooldownManager.powerBars.texture=v; if CM.PowerBars then CM.PowerBars:Update() end end,
+							},
+							showText = {
+								order=2, type="toggle", name="Show Value Text",
+								desc="Display current/max (or combo points) on the bar.",
+								width="full",
+								get=function() return E.db.cooldownManager.powerBars.showText end,
+								set=function(_, v) E.db.cooldownManager.powerBars.showText=v; if CM.PowerBars then CM.PowerBars:Update() end end,
+							},
+							hideInCombat = {
+								order=3, type="toggle", name="Hide in Combat",
+								desc="Hide the bar while in combat.",
+								width="full",
+								get=function() return E.db.cooldownManager.powerBars.hideInCombat end,
+								set=function(_, v) E.db.cooldownManager.powerBars.hideInCombat=v; if CM.PowerBars then CM.PowerBars:Update() end end,
+							},
+						},
+					},
+				},
+			},
+
 			-- Create custom bar tab
 			customBarsTab = {
 				order = 15,

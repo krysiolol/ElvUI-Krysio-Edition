@@ -57,11 +57,18 @@ function CM:PLAYER_TARGET_CHANGED()
 	if CM.Overlays then CM.Overlays:UpdateRange() end
 end
 
+function CM:UNIT_POWER_UPDATE(event, unit)
+	if unit == "player" and CM.PowerBars then
+		CM.PowerBars:Update()
+	end
+end
+
 function CM:PLAYER_ENTERING_WORLD()
 	self:ScanSpellbook()
 	self:UpdateAllBars()
 	if CM.Overlays then CM.Overlays:UpdateAll() end
 	if CM.UnitFrameWatch then CM.UnitFrameWatch:Update() end
+	if CM.PowerBars then CM.PowerBars:Update() end
 end
 
 -- ============================================================================
@@ -98,12 +105,14 @@ function CM:Initialize()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
 	self:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
 	self:RegisterEvent("PLAYER_TARGET_CHANGED")
+	self:RegisterEvent("UNIT_POWER_UPDATE")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 
-	-- 5. Periodic update timer (for screen overlays & unitframe indicators)
+	-- 5. Periodic update timer (for screen overlays, unitframe indicators & power bar)
 	self:ScheduleRepeatingTimer(function()
 		if CM.Overlays then CM.Overlays:UpdateAll() end
 		if CM.UnitFrameWatch then CM.UnitFrameWatch:Update() end
+		if CM.PowerBars then CM.PowerBars:Update() end
 	end, 0.4)
 
 	-- 6. Register options into ElvUI configuration window
@@ -113,6 +122,7 @@ function CM:Initialize()
 
 	-- 7. Initial render
 	self:UpdateAllBars()
+	if CM.PowerBars then CM.PowerBars:Update() end
 end
 
 local function InitializeCallback()

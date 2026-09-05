@@ -158,6 +158,17 @@ P.cooldownManager = {
 		},
 	},
 
+	-- Personal resource & power bar
+	powerBars = {
+		enable      = true,
+		name        = "Personal Power Bar",
+		barWidth    = 160,
+		barHeight   = 18,
+		texture     = "ElvUI Norm",
+		showText    = true,
+		hideInCombat = false,
+	},
+
 	-- User-created custom bars (populated dynamically at runtime)
 	customBars = {},
 }
