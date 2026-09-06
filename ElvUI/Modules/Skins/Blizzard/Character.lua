@@ -231,6 +231,16 @@ S:AddCallback("Skin_Character", function()
 	end)
 
 	hooksecurefunc("PaperDollFrameItemPopoutButton_SetReversed", function(self, isReversed)
+		-- Popout buttons can be reversed (e.g. while the flyout hides) without
+		-- ever going through PaperDollFrameItemFlyout_DisplayButton, which is
+		-- where the icon field is normally assigned. Resolve it the same way
+		-- DisplayButton does; skip the rotation if no named icon texture exists.
+		if not self.icon then
+			local name = self:GetName()
+			self.icon = name and _G[name.."IconTexture"]
+			if not self.icon then return end
+		end
+
 		if self:GetParent().verticalFlyout then
 			if isReversed then
 				self.icon:SetRotation(S.ArrowRotation.up)
