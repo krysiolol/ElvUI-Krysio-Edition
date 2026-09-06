@@ -2285,7 +2285,7 @@ local function GetOptionsTable_HealPrediction(updateFunc, groupName, numGroup)
 		order = 101,
 		type = "group",
 		name = L["Heal Prediction"],
-		desc = L["Show an incoming heal prediction bar on the unitframe. Also display a slightly different colored bar for incoming overheals."],
+		desc = L["Show an incoming heal prediction bar on the unitframe. Also display a slightly different colored bar for incoming overheals. Absorb shields are managed by this feature: they only display while Heal Prediction is enabled."],
 		get = function(info)
 			local val = E.db.unitframe.units[groupName].healPrediction[info[#info]]
 			if val == nil then
