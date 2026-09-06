@@ -26,9 +26,7 @@ end
 local function UpdateCustomRunicFromRunePowerUpdate(self, event)
 	if not self.USE_RUNICBAR or not self.Runic then return end
 	self.Runic:SetValue(UnitPower(self.unit, 6) or 0)
-	if self.Runic.PostUpdate then self.Runic:PostUpdate(self.unit) 
-	print("self.unit= "..self.unit)
-	end
+	if self.Runic.PostUpdate then self.Runic:PostUpdate(self.unit) end
 end
 
 -- local function UpdateCustomRunicFromPowerUpdate(self, event, unit, powerType)
