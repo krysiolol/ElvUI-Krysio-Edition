@@ -1272,6 +1272,11 @@ P.unitframe = {
 	roleSortOrderRaid = "TANK,HEALER,DAMAGER,NONE",
 	roleSortPlayerSeparatelyParty = false,
 	roleSortPlayerSeparatelyRaid = false,
+	rangeCheck = {
+		mode = "auto", -- "auto" | "spell" | "distance"
+		spell = 0, -- spellID anchor for mode "spell"
+		distance = 30, -- yards for mode "distance"
+	},
 	cooldown = {
 		override = true,
 		reverse = false,

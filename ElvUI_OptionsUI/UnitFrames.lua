@@ -3470,6 +3470,51 @@ E.Options.args.unitframe = {
 						}
 					}
 				},
+				rangeCheckGroup = {
+					order = 2.5,
+					type = "group",
+					name = "Range Check",
+					get = function(info) return E.db.unitframe.rangeCheck and E.db.unitframe.rangeCheck[info[#info]] end,
+					set = function(info, value) E.db.unitframe.rangeCheck = E.db.unitframe.rangeCheck or {} E.db.unitframe.rangeCheck[info[#info]] = value UF:UpdateRangeCheckSpells() UF:Update_AllFrames() end,
+					args = {
+						header = {
+							order = 1,
+							type = "header",
+							name = "Range Check"
+						},
+						mode = {
+							order = 2,
+							type = "select",
+							name = "Mode",
+							desc = "Choose how the unitframe fader determines range. Auto uses your class spell tables. Spell anchors the check on a single spell of your choice. Distance anchors it on the learned spell whose range is closest to the selected distance from below.",
+							values = {
+								auto = "Auto",
+								spell = "Spell",
+								distance = "Distance"
+							}
+						},
+						spell = {
+							order = 3,
+							type = "select",
+							name = "Spell",
+							desc = "Anchor the fader range check on this spell. When the spell does not apply to a unit (for example a heal spell against an enemy, or a spell that cannot target that unit), the fader falls back to the default class-based range check.",
+							values = function()
+								return UF:GetSpellbookRangeSpells()
+							end,
+							hidden = function() return not E.db.unitframe.rangeCheck or E.db.unitframe.rangeCheck.mode ~= "spell" end,
+							disabled = function() return not E.db.unitframe.rangeCheck or E.db.unitframe.rangeCheck.mode ~= "spell" end
+						},
+						distance = {
+							order = 4,
+							type = "range",
+							name = "Distance",
+							desc = "The fader picks the learned spell whose max range is closest to this distance from below (highest max range that is still equal to or shorter than the distance). When the spell does not apply to a unit, the fader falls back to the default class-based range check.",
+							min = 5, max = 60, step = 1,
+							hidden = function() return not E.db.unitframe.rangeCheck or E.db.unitframe.rangeCheck.mode ~= "distance" end,
+							disabled = function() return not E.db.unitframe.rangeCheck or E.db.unitframe.rangeCheck.mode ~= "distance" end
+						}
+					}
+				},
 				allColorsGroup = {
 					order = 3,
 					type = "group",

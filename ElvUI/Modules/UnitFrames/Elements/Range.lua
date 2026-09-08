@@ -5,6 +5,7 @@ local SpellRange = E.Libs.SpellRange
 --Lua functions
 local pairs, ipairs = pairs, ipairs
 local find = string.find
+local tonumber = tonumber
 --WoW API / Variables
 local CheckInteractDistance = CheckInteractDistance
 local UnitCanAttack = UnitCanAttack
@@ -14,6 +15,10 @@ local UnitInRange = UnitInRange
 local UnitIsConnected = UnitIsConnected
 local UnitIsDeadOrGhost = UnitIsDeadOrGhost
 local UnitIsUnit = UnitIsUnit
+local GetNumSpellTabs = GetNumSpellTabs
+local GetSpellBookItemInfo = GetSpellBookItemInfo
+local GetSpellInfo = GetSpellInfo
+local GetSpellTabInfo = GetSpellTabInfo
 
 local SRT = {}
 local function AddTable(tbl)
@@ -22,6 +27,65 @@ end
 
 local function AddSpell(tbl, spellID)
 	SRT[E.myclass][tbl][#SRT[E.myclass][tbl] + 1] = spellID
+end
+
+-- Spellbook scanning helpers for the custom range check anchor.
+-- Return a table of learned spellID -> spell name for every player spell with a max range > 0.
+function UF:GetSpellbookRangeSpells()
+	local spells = {}
+	local numTabs = GetNumSpellTabs()
+	for tab = 1, numTabs do
+		local _, _, offset, numSpells = GetSpellTabInfo(tab)
+		for slot = offset + 1, offset + numSpells do
+			local spellType, spellID = GetSpellBookItemInfo(slot, "spell")
+			if spellType == "spell" and spellID and spellID > 0 then
+				local name, _, _, _, _, maxRange = GetSpellInfo(spellID)
+				if name and maxRange and maxRange > 0 then
+					spells[spellID] = name
+				end
+			end
+		end
+	end
+	return spells
+end
+
+-- Find the learned spell whose max range is the closest to `distance` from below
+-- (largest maxRange <= distance). Returns the spellID or nil when no spell qualifies.
+local function FindDistanceAnchorSpell(distance)
+	distance = tonumber(distance) or 30
+	local bestSpell, bestRange
+	local numTabs = GetNumSpellTabs()
+	for tab = 1, numTabs do
+		local _, _, offset, numSpells = GetSpellTabInfo(tab)
+		for slot = offset + 1, offset + numSpells do
+			local spellType, spellID = GetSpellBookItemInfo(slot, "spell")
+			if spellType == "spell" and spellID and spellID > 0 then
+				local _, _, _, _, _, maxRange = GetSpellInfo(spellID)
+				if maxRange and maxRange > 0 and maxRange <= distance and (not bestRange or maxRange > bestRange) then
+					bestSpell, bestRange = spellID, maxRange
+				end
+			end
+		end
+	end
+	return bestSpell
+end
+
+-- Resolve the per-profile custom range check anchor into a cached spellID on the module.
+-- Mode "spell" uses the configured spellID when it is still learned; mode "distance" picks the
+-- learned spell whose max range is closest to the configured yards from below. Any other mode,
+-- an unlearned/unknown anchor, or a missing config resolves to nil (fall back to class tables).
+function UF:UpdateCustomAnchorSpell()
+	self.customAnchorSpell = nil
+	local cfg = E.db and E.db.unitframe and E.db.unitframe.rangeCheck
+	if not cfg then return end
+
+	if cfg.mode == "spell" then
+		if cfg.spell and cfg.spell > 0 and GetSpellInfo(cfg.spell) then
+			self.customAnchorSpell = cfg.spell
+		end
+	elseif cfg.mode == "distance" then
+		self.customAnchorSpell = FindDistanceAnchorSpell(cfg.distance)
+	end
 end
 
 function UF:UpdateRangeCheckSpells()
@@ -36,6 +100,8 @@ function UF:UpdateRangeCheckSpells()
 			end
 		end
 	end
+
+	self:UpdateCustomAnchorSpell() --Re-resolve the custom anchor on init and on LEARNED_SPELL_IN_TAB
 end
 
 local function getUnit(unit)
@@ -60,10 +126,26 @@ local function getUnit(unit)
 	end
 end
 
+-- Anchor-first range check: returns true/false when the custom anchor applies to the unit
+-- (IsSpellInRange returned 1/0), nil when there is no anchor or it does not apply, so the
+-- caller falls through to the per-class spell tables unchanged.
+local function customAnchorIsInRange(unit)
+	local anchor = UF.customAnchorSpell
+	if not anchor then return nil end
+
+	local inRange = SpellRange.IsSpellInRange(anchor, unit)
+	if not inRange then return nil end --nil: spell not usable on this unit (e.g. heal on an enemy)
+
+	return inRange == 1
+end
+
 local function friendlyIsInRange(unit)
 	if (not UnitIsUnit(unit, "player")) and (UnitInParty(unit) or UnitInRaid(unit)) then
 		unit = getUnit(unit) -- swap the unit with `raid#` or `party#` when its NOT `player`, UnitIsUnit is true, and its not using `raid#` or `party#` already
 	end
+
+	local anchorInRange = customAnchorIsInRange(unit)
+	if anchorInRange ~= nil then return anchorInRange end
 
 	local inRange, checkedRange = UnitInRange(unit)
 	if checkedRange and not inRange then
@@ -98,6 +180,9 @@ local function friendlyIsInRange(unit)
 end
 
 local function petIsInRange(unit)
+	local anchorInRange = customAnchorIsInRange(unit)
+	if anchorInRange ~= nil then return anchorInRange end
+
 	if CheckInteractDistance(unit, 2) then
 		return true -- within 8 yards (arg2 as 2 is Trade distance)
 	end
@@ -124,6 +209,9 @@ local function petIsInRange(unit)
 end
 
 local function enemyIsInRange(unit)
+	local anchorInRange = customAnchorIsInRange(unit)
+	if anchorInRange ~= nil then return anchorInRange end
+
 	if CheckInteractDistance(unit, 2) then
 		return true -- within 8 yards (arg2 as 2 is Trade distance)
 	end
@@ -142,6 +230,9 @@ local function enemyIsInRange(unit)
 end
 
 local function enemyIsInLongRange(unit)
+	local anchorInRange = customAnchorIsInRange(unit)
+	if anchorInRange ~= nil then return anchorInRange end
+
 	if SRT[E.myclass] then
 		if SRT[E.myclass].longEnemySpells and (#SRT[E.myclass].longEnemySpells > 0) then -- you have some 30+ range damage spell
 			for _, spellID in ipairs(SRT[E.myclass].longEnemySpells) do
