@@ -222,6 +222,25 @@ function NP:StyleFrameColor(frame, r, g, b)
 	frame.borderright:SetTexture(r, g, b)
 end
 
+function NP:TruncateFontString(fontString, maxWidth, dots)
+	local text = fontString:GetText()
+	if not text or text == "" or maxWidth <= 0 then return end
+	if fontString:GetStringWidth() <= maxWidth then return end
+
+	local lo, hi = 0, #text
+	while lo < hi do
+		local mid = floor((lo + hi + 1) / 2)
+		local candidate = E:ShortenString(text, mid, dots)
+		fontString:SetText(candidate)
+		if fontString:GetStringWidth() <= maxWidth then
+			lo = mid
+		else
+			hi = mid - 1
+		end
+	end
+	fontString:SetText(E:ShortenString(text, lo, dots))
+end
+
 function NP:GetUnitByName(frame, unitType)
 	local unit = self.UnitByName[frame.UnitName] or self[unitType][frame.UnitName]
 	if unit then
@@ -575,6 +594,7 @@ function NP:OnCreated(frame)
 
 	local unitFrame = CreateFrame("Frame", format("ElvUI_NamePlate%d", plateID), frame)
 	frame.UnitFrame = unitFrame
+	if frame.isTestFrame then unitFrame.isTestFrame = true end
 	unitFrame:Hide()
 	unitFrame:SetAllPoints()
 	unitFrame:SetScript("OnEvent", self.OnEvent)
@@ -641,6 +661,7 @@ end
 
 function NP:RegisterEvents(frame)
 	if not frame.unit then return end
+	if frame.isTestFrame then return end
 
 	if self.db.units[frame.UnitType].health.enable or (frame.isTarget and self.db.alwaysShowTargetHealth) then
 		if self.db.units[frame.UnitType].castbar.enable then
@@ -709,6 +730,7 @@ function NP:PlateFade(nameplate, timeToFade, startAlpha, endAlpha)
 end
 
 function NP:SetTargetFrame(frame)
+	if frame.isTestFrame then return end
 	if hasTarget and frame.alpha == 1 then
 		if not frame.isTarget then
 			frame.isTarget = true
@@ -807,6 +829,7 @@ function NP:SetTargetFrame(frame)
 end
 
 function NP:SetMouseoverFrame(frame)
+	if frame.isTestFrame then return end
 	if frame.oldHighlight:IsShown() then
 		if not frame.isMouseover then
 			frame.isMouseover = true
@@ -853,25 +876,29 @@ function NP:OnUpdate()
 	end
 
 	for frame in pairs(NP.VisiblePlates) do
-		if hasTarget then
-			frame.alpha = frame:GetParent():GetAlpha()
-			frame:GetParent():SetAlpha(1)
-		else
+		if frame.isTestFrame then
 			frame.alpha = 1
-		end
+		else
+			if hasTarget then
+				frame.alpha = frame:GetParent():GetAlpha()
+				frame:GetParent():SetAlpha(1)
+			else
+				frame.alpha = 1
+			end
 
-		NP:SetMouseoverFrame(frame)
-		NP:SetTargetFrame(frame)
+			NP:SetMouseoverFrame(frame)
+			NP:SetTargetFrame(frame)
 
-		if frame.UnitReaction ~= NP:GetUnitInfo(frame) then
-			NP:UpdateAllFrame(frame, nil, true)
-		end
+			if frame.UnitReaction ~= NP:GetUnitInfo(frame) then
+				NP:UpdateAllFrame(frame, nil, true)
+			end
 
-		local status = NP:UnitDetailedThreatSituation(frame)
-		if frame.ThreatStatus ~= status then
-			frame.ThreatStatus = status
+			local status = NP:UnitDetailedThreatSituation(frame)
+			if frame.ThreatStatus ~= status then
+				frame.ThreatStatus = status
 
-			NP:Update_HealthColor(frame)
+				NP:Update_HealthColor(frame)
+			end
 		end
 	end
 end
@@ -1195,6 +1222,13 @@ function NP:TogleTestFrame(unitType)
 		end
 
 		self:UpdateAllFrame(unitFrame, true, true)
+
+		local castbar = unitFrame.CastBar
+		castbar.Name:SetText("Casting")
+		castbar.Time:SetText("3.1")
+		castbar.Icon.texture:SetTexture([[Interface\Icons\Spell_Holy_Penance]])
+		castbar:SetStatusBarColor(self.db.colors.castColor.r, self.db.colors.castColor.g, self.db.colors.castColor.b)
+		castbar:Show()
 	else
 		ElvNP_Test:Hide()
 	end
@@ -1217,6 +1251,7 @@ function NP:Initialize()
 	self:UpdateCVars()
 
 	local ElvNP_Test = CreateFrame("Button", "ElvNP_Test")
+	ElvNP_Test.isTestFrame = true
 	ElvNP_Test:Point("BOTTOM", UIParent, "BOTTOM", 0, 250)
 	ElvNP_Test:SetMovable(true)
 	ElvNP_Test:RegisterForDrag("LeftButton", "RightButton")
@@ -1235,15 +1270,10 @@ function NP:Initialize()
 	end
 
 	self:StyleFrame(ElvNP_Test, true)
+	ElvNP_Test:SetSize(E.db.nameplates.plateSize.enemyWidth or 150, E.db.nameplates.plateSize.enemyHeight or 30)
 	self:OnCreated(ElvNP_Test)
 	local castbar = ElvNP_Test.UnitFrame.CastBar
 	castbar:SetParent(ElvNP_Test.UnitFrame.Health)
-	castbar.Hide = castbar.Show
-	castbar:Show()
-	castbar.Name:SetText("Casting")
-	castbar.Time:SetText("3.1")
-	castbar.Icon.texture:SetTexture([[Interface\Icons\Spell_Holy_Penance]])
-	castbar:SetStatusBarColor(self.db.colors.castColor.r, self.db.colors.castColor.g, self.db.colors.castColor.b)
 	ElvNP_Test:Hide()
 
 	self.Frame = CreateFrame("Frame"):SetScript("OnUpdate", self.OnUpdate)

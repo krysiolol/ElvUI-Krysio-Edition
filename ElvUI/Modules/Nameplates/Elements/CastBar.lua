@@ -20,6 +20,16 @@ local function resetAttributes(self)
 	self.spellName = nil
 end
 
+local function truncateCastbarName(castBar, db)
+	local maxNameWidth = castBar:GetWidth()
+	if db.textPosition == "BELOW" or db.textPosition == "ABOVE" then
+		maxNameWidth = maxNameWidth - 16
+	else
+		maxNameWidth = maxNameWidth - ((castBar.Time:IsShown() and castBar.Time:GetStringWidth() + 8) or 4)
+	end
+	NP:TruncateFontString(castBar.Name, maxNameWidth, true)
+end
+
 function NP:Update_CastBarOnUpdate(elapsed)
 	if self.casting or self.channeling then
 		local isCasting = self.casting
@@ -155,6 +165,7 @@ function NP:Update_CastBar(frame, event, unit)
 		castBar.Spark:Show()
 		castBar.Name:SetText(name)
 		castBar.Time:SetText()
+		truncateCastbarName(castBar, self.db.units[frame.UnitType].castbar)
 
 		castBar:Show()
 	elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
@@ -204,6 +215,7 @@ function NP:Update_CastBar(frame, event, unit)
 			end
 
 			castBar.Name:SetText(name)
+			truncateCastbarName(castBar, self.db.units[frame.UnitType].castbar)
 			castBar.max = endTime - startTime
 			castBar.startTime = startTime
 			castBar.delay = castBar.delay + delta
@@ -281,12 +293,17 @@ function NP:Configure_CastBar(frame, configuring)
 	if db.textPosition == "BELOW" then
 		castBar.Time:SetPoint("TOPRIGHT", castBar, "BOTTOMRIGHT")
 		castBar.Name:SetPoint("TOPLEFT", castBar, "BOTTOMLEFT")
+		castBar.Name:SetWidth((db.width * (frame.currentScale or 1)) - 16)
 	elseif db.textPosition == "ABOVE" then
 		castBar.Time:SetPoint("BOTTOMRIGHT", castBar, "TOPRIGHT")
 		castBar.Name:SetPoint("BOTTOMLEFT", castBar, "TOPLEFT")
+		castBar.Name:SetWidth((db.width * (frame.currentScale or 1)) - 16)
 	else
 		castBar.Time:SetPoint("RIGHT", castBar, "RIGHT", -4, 0)
 		castBar.Name:SetPoint("LEFT", castBar, "LEFT", 4, 0)
+		local castWidth = db.width * (frame.currentScale or 1)
+		castBar.Name:SetWidth(castWidth - 8)
+		castBar.Time:SetWidth(math.min(castWidth * 0.4, 60))
 	end
 
 	if configuring then

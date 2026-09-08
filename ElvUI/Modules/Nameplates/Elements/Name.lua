@@ -36,16 +36,24 @@ function NP:Update_Name(frame, triggered)
 	local nameText = frame.UnitName or UNKNOWN
 	name:SetText(self.db.units[frame.UnitType].name.abbrev and abbrev(nameText) or nameText)
 
+	if self.db.units[frame.UnitType].health.enable or (self.db.alwaysShowTargetHealth and frame.isTarget) then
+		NP:TruncateFontString(name, frame.Health:GetWidth() - 4, true)
+	else
+		NP:TruncateFontString(name, frame:GetWidth() - 8, true)
+	end
+
 	if not triggered then
 		name:ClearAllPoints()
 		if self.db.units[frame.UnitType].health.enable or (self.db.alwaysShowTargetHealth and frame.isTarget) then
 			name:SetJustifyH("LEFT")
 			name:SetPoint(E.InversePoints[self.db.units[frame.UnitType].name.position], self.db.units[frame.UnitType].name.parent == "Nameplate" and frame or frame[self.db.units[frame.UnitType].name.parent], self.db.units[frame.UnitType].name.position, self.db.units[frame.UnitType].name.xOffset, self.db.units[frame.UnitType].name.yOffset)
 			name:SetParent(frame.Health)
+			name:SetWidth(frame.Health:GetWidth() - 4)
 		else
 			name:SetJustifyH("CENTER")
 			name:SetPoint("TOP", frame)
 			name:SetParent(frame)
+			name:SetWidth(frame:GetWidth() - 8)
 		end
 	end
 

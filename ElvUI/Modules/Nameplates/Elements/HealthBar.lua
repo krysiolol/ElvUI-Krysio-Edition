@@ -119,6 +119,7 @@ function NP:Update_Health(frame)
 
 	if self.db.units[frame.UnitType].health.text.enable then
 		frame.Health.Text:SetText(E:GetFormattedText(self.db.units[frame.UnitType].health.text.format, health, maxHealth))
+		NP:TruncateFontString(frame.Health.Text, frame.Health:GetWidth() - 8, true)
 	end
 end
 
@@ -174,6 +175,7 @@ function NP:Configure_HealthBar(frame, configuring)
 			healthBar.Text:ClearAllPoints()
 			healthBar.Text:Point(E.InversePoints[db.text.position], db.text.parent == "Nameplate" and frame or frame[db.text.parent], db.text.position, db.text.xOffset, db.text.yOffset)
 			healthBar.Text:FontTemplate(LSM:Fetch("font", db.text.font), db.text.fontSize, db.text.fontOutline)
+			healthBar.Text:SetWidth(healthBar:GetWidth() - 8)
 			healthBar.Text:Show()
 		else
 			healthBar.Text:Hide()
