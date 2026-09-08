@@ -62,7 +62,7 @@ local function CreateCellDefaultBindings()
     }
 end
 
-local CHARACTER_BINDINGS_SCHEMA = 1
+local CHARACTER_BINDINGS_SCHEMA = 2
 
 function CC:EnsureDB()
     if not E.db then return nil end
@@ -93,41 +93,242 @@ function CC:EnsureCharacterDB(profileDB)
         _G.ElvUI_ClickCastCharacterDB = charDB
     end
 
-    if rawget(charDB, "bindingsInitialized") ~= true then
-        local db = profileDB or self:EnsureDB()
-        local legacyBindings = db and rawget(db, "bindings")
-        local legacyAlreadyClaimed = db and rawget(db, "characterBindingsMigrated") == true
+    local schema = rawget(charDB, "schema")
+    if schema == CHARACTER_BINDINGS_SCHEMA then
+        return charDB
+    end
+    if type(schema) == "number" and schema > CHARACTER_BINDINGS_SCHEMA then
+        -- Written by a newer addon version: never restructure or downgrade it.
+        return charDB
+    end
 
+    -- schema is nil (fresh DB or v1 legacy) or an older value: migrate to v2.
+    local db = profileDB or self:EnsureDB()
+    local legacyBindings = db and rawget(db, "bindings")
+    local legacyAlreadyClaimed = db and rawget(db, "characterBindingsMigrated") == true
+
+    -- v1 kept the flat list in charDB.bindings; move it into the "Default"
+    -- profile. A migratedFromProfile marker set by the v1 legacy migration
+    -- survives untouched through the v1 -> v2 upgrade.
+    local flatBindings = rawget(charDB, "bindings")
+    if type(flatBindings) == "table" then
+        charDB.profiles = charDB.profiles or {}
+        local defaultProfile = charDB.profiles["Default"]
+        if type(defaultProfile) ~= "table" then
+            defaultProfile = {}
+            charDB.profiles["Default"] = defaultProfile
+        end
+        if type(defaultProfile.bindings) ~= "table" then
+            defaultProfile.bindings = flatBindings
+        end
+        charDB.bindings = nil
+    end
+
+    if type(charDB.profiles) ~= "table" then
+        charDB.profiles = {}
+    end
+
+    if not charDB.profiles["Default"] then
         if type(legacyBindings) == "table" and not legacyAlreadyClaimed then
-            charDB.bindings = CopyTable(legacyBindings)
+            -- Pre-characterDB era: bindings lived in the ElvUI profile DB.
+            charDB.profiles["Default"] = { bindings = CopyTable(legacyBindings) }
             db.characterBindingsMigrated = true
             charDB.migratedFromProfile = E.data and E.data.keys and E.data.keys.profile or true
         else
-            charDB.bindings = CreateCellDefaultBindings()
+            charDB.profiles["Default"] = { bindings = CreateCellDefaultBindings() }
         end
-
-        charDB.bindingsInitialized = true
-        charDB.schema = CHARACTER_BINDINGS_SCHEMA
-    else
-        charDB.bindings = type(charDB.bindings) == "table" and charDB.bindings or {}
-        charDB.schema = CHARACTER_BINDINGS_SCHEMA
     end
 
+    -- Partial v2 robustness: fill missing profile-management fields.
+    if type(charDB.profiles["Default"].bindings) ~= "table" then
+        charDB.profiles["Default"].bindings = CreateCellDefaultBindings()
+    end
+    if type(charDB.activeProfile) ~= "string" or not charDB.profiles[charDB.activeProfile] then
+        charDB.activeProfile = "Default"
+    end
+    charDB.talentProfiles = type(charDB.talentProfiles) == "table" and charDB.talentProfiles or {}
+    if type(charDB.talentProfiles[1]) ~= "string" or not charDB.profiles[charDB.talentProfiles[1]] then
+        charDB.talentProfiles[1] = "Default"
+    end
+    if type(charDB.talentProfiles[2]) ~= "string" or not charDB.profiles[charDB.talentProfiles[2]] then
+        charDB.talentProfiles[2] = "Default"
+    end
+    if charDB.autoSwitch ~= true then charDB.autoSwitch = false end
+
+    -- Every profile must expose a table in its bindings key.
+    for profileName, profile in pairs(charDB.profiles) do
+        if type(profileName) == "string" and type(profile) == "table" then
+            if type(profile.bindings) ~= "table" then
+                profile.bindings = CreateCellDefaultBindings()
+            end
+        end
+    end
+
+    charDB.bindingsInitialized = true
+    charDB.schema = CHARACTER_BINDINGS_SCHEMA
     return charDB
 end
 
 function CC:GetBindings()
     local db = self:EnsureDB()
     local charDB = self:EnsureCharacterDB(db)
-    return charDB and charDB.bindings or {}
+    if not charDB then return {} end
+    local active = type(charDB.activeProfile) == "string" and charDB.activeProfile or "Default"
+    return self:GetProfileBindings(active)
 end
 
 function CC:SetBindings(bindings)
     local db = self:EnsureDB()
     local charDB = self:EnsureCharacterDB(db)
     if not charDB then return false end
-    charDB.bindings = type(bindings) == "table" and bindings or {}
+    local profileName = type(charDB.activeProfile) == "string" and charDB.activeProfile or "Default"
+    local profile = charDB.profiles[profileName]
+    if not profile then
+        profile = {}
+        charDB.profiles[profileName] = profile
+    end
+    profile.bindings = type(bindings) == "table" and bindings or {}
     return true
+end
+
+function CC:GetProfiles()
+    local charDB = self:EnsureCharacterDB()
+    local names = {}
+    for name in pairs(charDB.profiles or {}) do
+        if type(name) == "string" then names[#names + 1] = name end
+    end
+    if #names == 0 then names[1] = "Default" end
+    table.sort(names, function(a, b) return strlower(a) < strlower(b) end)
+    return names
+end
+
+function CC:GetActiveProfile()
+    local charDB = self:EnsureCharacterDB()
+    if charDB and type(charDB.activeProfile) == "string" and charDB.profiles and charDB.profiles[charDB.activeProfile] then
+        return charDB.activeProfile
+    end
+    return "Default"
+end
+
+function CC:GetProfileBindings(profileName)
+    local charDB = self:EnsureCharacterDB()
+    if not charDB or not charDB.profiles then return {} end
+    local profile = charDB.profiles[profileName]
+    if not profile then profile = charDB.profiles["Default"] end
+    return profile and profile.bindings or {}
+end
+
+function CC:ValidateProfileName(name, excludeName)
+    if type(name) ~= "string" then return nil, "Profile name must be text." end
+    name = gsub(name, "^%s+", "")
+    name = gsub(name, "%s+$", "")
+    if name == "" then return nil, "A profile name cannot be empty." end
+    local excluded = type(excludeName) == "string" and strlower(excludeName) or nil
+    local wanted = strlower(name)
+    local charDB = self:EnsureCharacterDB()
+    for existing in pairs(charDB.profiles or {}) do
+        if type(existing) == "string" and strlower(existing) == wanted and strlower(existing) ~= excluded then
+            return nil, "A profile named \"" .. existing .. "\" already exists."
+        end
+    end
+    return name
+end
+
+function CC:AddProfile(name, copyFromName)
+    local clean, err = self:ValidateProfileName(name)
+    if not clean then return false, err end
+    local charDB = self:EnsureCharacterDB()
+    local bindings
+    local source = copyFromName and charDB.profiles and charDB.profiles[copyFromName]
+    if source and type(source.bindings) == "table" then
+        bindings = {}
+        for i, binding in ipairs(source.bindings) do
+            bindings[i] = self.CopyTable(binding)
+        end
+    else
+        bindings = CreateCellDefaultBindings()
+    end
+    charDB.profiles[clean] = { bindings = bindings }
+    return true, clean
+end
+
+function CC:DuplicateActiveProfile(name)
+    return self:AddProfile(name, self:GetActiveProfile())
+end
+
+function CC:RenameProfile(oldName, newName)
+    local charDB = self:EnsureCharacterDB()
+    if not charDB.profiles or not charDB.profiles[oldName] then
+        return false, "Profile \"" .. tostring(oldName) .. "\" was not found."
+    end
+    local clean, err = self:ValidateProfileName(newName, oldName)
+    if not clean then return false, err end
+    local profile = charDB.profiles[oldName]
+    charDB.profiles[clean] = profile
+    charDB.profiles[oldName] = nil
+    if charDB.activeProfile == oldName then charDB.activeProfile = clean end
+    for group, profileName in pairs(charDB.talentProfiles or {}) do
+        if profileName == oldName then charDB.talentProfiles[group] = clean end
+    end
+    return true, clean
+end
+
+function CC:DeleteProfile(name)
+    local charDB = self:EnsureCharacterDB()
+    if not charDB.profiles or not charDB.profiles[name] then
+        return false, "Profile \"" .. tostring(name) .. "\" was not found."
+    end
+    if charDB.activeProfile == name then
+        return false, "Cannot delete the active profile. Switch to another profile first."
+    end
+    local count = 0
+    for _ in pairs(charDB.profiles) do count = count + 1 end
+    if count <= 1 then
+        return false, "Cannot delete the only profile."
+    end
+    charDB.profiles[name] = nil
+    -- Talent-group assignments pointing at the deleted profile fall back to
+    -- "Default", which is guaranteed to exist by EnsureCharacterDB.
+    for group, profileName in pairs(charDB.talentProfiles or {}) do
+        if profileName == name then charDB.talentProfiles[group] = "Default" end
+    end
+    return true
+end
+
+function CC:SetActiveProfile(name)
+    local charDB = self:EnsureCharacterDB()
+    if not charDB.profiles or not charDB.profiles[name] then
+        return false, "Profile \"" .. tostring(name) .. "\" was not found."
+    end
+    if charDB.activeProfile == name then return true end
+    charDB.activeProfile = name
+    self:RequestApply("profile switch")
+    return true
+end
+
+function CC:SetAutoSwitch(enabled)
+    local charDB = self:EnsureCharacterDB()
+    charDB.autoSwitch = enabled == true
+    return true
+end
+
+function CC:SetTalentProfile(talentGroup, profileName)
+    local charDB = self:EnsureCharacterDB()
+    talentGroup = tonumber(talentGroup) or 1
+    if talentGroup < 1 or talentGroup > 2 then
+        return false, "Talent groups are 1 or 2."
+    end
+    if not charDB.profiles or not charDB.profiles[profileName] then
+        return false, "Profile \"" .. tostring(profileName) .. "\" was not found."
+    end
+    charDB.talentProfiles = charDB.talentProfiles or {}
+    charDB.talentProfiles[talentGroup] = profileName
+    return true
+end
+
+function CC:GetCurrentTalentGroup()
+    local group = GetActiveTalentGroup and GetActiveTalentGroup() or 1
+    return tonumber(group) or 1
 end
 
 function CC:IsEnabled()
@@ -992,6 +1193,30 @@ function CC:GroupChanged()
     if self.ScanClickCastFrames then self:ScanClickCastFrames() end
 end
 
+function CC:OnTalentGroupChanged()
+    local charDB = self:EnsureCharacterDB()
+    if not charDB.autoSwitch then return end
+    local group = self:GetCurrentTalentGroup()
+    local target = charDB.talentProfiles and charDB.talentProfiles[group]
+    if target and target ~= charDB.activeProfile and charDB.profiles and charDB.profiles[target] then
+        self:SetActiveProfile(target)
+        -- The open editor draft belongs to the previously active profile.
+        -- Restarting the session prevents a dirty draft from being committed
+        -- into the profile we just switched to.
+        local f = self.editorFrame
+        if f and f:IsShown() and f.sessionActive then
+            if f.dirty then
+                self:CancelEditorChanges()
+                self:RefreshEditor()
+            else
+                self:BeginEditorSession(true)
+                self:RefreshEditor()
+            end
+            self:EditorMessage("Talent group changed: profile \"" .. tostring(target) .. "\" is now active.", "normal")
+        end
+    end
+end
+
 function CC:RefreshAfterElvUIProfileChange(reason)
 
 
@@ -1086,6 +1311,8 @@ function CC:Initialize()
     pcall(function() self:RegisterEvent("LEARNED_SPELL_IN_TAB", "SPELLS_CHANGED") end)
     pcall(function() self:RegisterEvent("UPDATE_MACROS") end)
     pcall(function() self:RegisterEvent("ADDON_LOADED") end)
+    pcall(function() self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", "OnTalentGroupChanged") end)
+    pcall(function() self:RegisterEvent("PLAYER_TALENT_UPDATE", "OnTalentGroupChanged") end)
 
     if E.data and E.data.RegisterCallback then
         E.data.RegisterCallback(self, "OnProfileChanged", "OnElvUIProfileChanged")

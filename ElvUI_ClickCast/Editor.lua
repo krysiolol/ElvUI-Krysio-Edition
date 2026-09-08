@@ -639,6 +639,214 @@ function CC:CancelEditorChanges()
     self:EditorMessage("Draft changes discarded.", "normal")
 end
 
+local function BuildProfileOptions()
+    local out = {}
+    for _, name in ipairs(CC:GetProfiles()) do
+        out[#out + 1] = { value = name, text = name }
+    end
+    return out
+end
+
+local function EnsureProfileNameDialog()
+    if _G.StaticPopupDialogs and _G.StaticPopupDialogs["ELVUICLICKCAST_PROFILE_NAME"] then return end
+    _G.StaticPopupDialogs["ELVUICLICKCAST_PROFILE_NAME"] = {
+        text = "Enter a profile name.",
+        button1 = "Accept",
+        button2 = "Cancel",
+        hasEditBox = 1,
+        maxLetters = 24,
+        timeout = 0,
+        whileDead = 1,
+        hideOnEscape = 1,
+        preferredIndex = 3,
+        OnShow = function(self)
+            if self.editBox then
+                self.editBox:SetText(CC.profileDialogPrefill or "")
+                self.editBox:HighlightText()
+                self.editBox:SetFocus()
+            end
+        end,
+        EditBoxOnEnterPressed = function(self)
+            local dialog = self.button1 and self or (self.GetParent and self:GetParent())
+            if dialog and dialog.button1 and dialog.button1.Click then
+                dialog.button1:Click()
+            end
+        end,
+        OnAccept = function(self)
+            local callback = CC.profileDialogCallback
+            if callback then
+                callback(self.editBox and self.editBox:GetText() or "")
+            end
+        end,
+        OnCancel = function()
+            CC.profileDialogCallback = nil
+            CC.profileDialogPrefill = nil
+        end,
+    }
+end
+
+function CC:RefreshProfileToolbar()
+    local f = self.editorFrame
+    if not f or not f.profileSelect then return end
+    local charDB = self:EnsureCharacterDB()
+    local tps = charDB.talentProfiles or {}
+    local active = self:GetActiveProfile()
+
+    -- Keep the user's last explicit selection (so Delete can target a profile
+    -- that stopped being the active one, e.g. after an auto-switch), falling
+    -- back to the active profile when the selection no longer exists.
+    local options = BuildProfileOptions()
+    local current = f.profileSelect:GetValue()
+    local keepCurrent = current and charDB.profiles and charDB.profiles[current]
+    f.profileSelect:SetOptions(options, keepCurrent and current or active)
+
+    f.autoSwitchCheck:SetValue(charDB.autoSwitch == true)
+
+    local count = 0
+    for _ in pairs(charDB.profiles or {}) do count = count + 1 end
+    local selected = f.profileSelect:GetValue()
+    local canDelete = count > 1 and selected and selected ~= active and charDB.profiles and charDB.profiles[selected]
+    f.deleteProfileButton:SetEnabledState(canDelete and true or false)
+
+    local hasTwoGroups = (GetNumTalentGroups and GetNumTalentGroups() or 1) > 1
+    f.tg1Select:SetOptions(options, tps[1] or "Default")
+    if f.tg2Select then
+        f.tg2Select:SetOptions(options, tps[2] or "Default")
+        if hasTwoGroups then f.tg2Select:Show() else f.tg2Select:Hide() end
+    end
+    if f.tg2Label then
+        if hasTwoGroups then f.tg2Label:Show() else f.tg2Label:Hide() end
+    end
+end
+
+function CC:SwitchEditorProfile(name)
+    local f = self.editorFrame
+    if not f then return end
+    local charDB = self:EnsureCharacterDB()
+    if type(name) ~= "string" or not charDB.profiles or not charDB.profiles[name] then
+        self:RefreshProfileToolbar()
+        if name ~= nil then
+            self:EditorMessage("Profile \"" .. tostring(name) .. "\" was not found.", "error")
+        end
+        return
+    end
+    if name == self:GetActiveProfile() then return end
+
+    -- Never commit a dirty draft into the profile we are switching to.
+    if f.dirty then
+        self:CancelEditorChanges()
+    end
+    self:SetActiveProfile(name)
+    self:BeginEditorSession(true)
+    self:RefreshEditor()
+    self:EditorMessage("Switched to profile \"" .. tostring(name) .. "\".", "normal")
+end
+
+function CC:DeleteSelectedProfile()
+    local f = self.editorFrame
+    if not f or not f.profileSelect then return end
+    local target = f.profileSelect:GetValue()
+    if type(target) ~= "string" then return end
+    if target == self:GetActiveProfile() then
+        self:RefreshProfileToolbar()
+        self:EditorMessage("Switch to another profile before deleting \"" .. target .. "\".", "error")
+        return
+    end
+    local ok, err = self:DeleteProfile(target)
+    self:RefreshProfileToolbar()
+    if ok then
+        self:EditorMessage("Profile \"" .. target .. "\" deleted.", "success")
+    else
+        self:EditorMessage(tostring(err or "Profile deletion failed."), "error")
+    end
+end
+
+function CC:ShowNewProfileDialog()
+    local f = self.editorFrame
+    if not f then return end
+    EnsureProfileNameDialog()
+    CC.profileDialogPrefill = ""
+    CC.profileDialogCallback = function(name)
+        local clean, err = CC:ValidateProfileName(name)
+        if not clean then
+            CC:EditorMessage(tostring(err), "error")
+            CC.profileDialogPrefill = tostring(name or "")
+            StaticPopup_Show("ELVUICLICKCAST_PROFILE_NAME")
+            return
+        end
+        CC.profileDialogCallback = nil
+        CC.profileDialogPrefill = nil
+        local ok, opErr = CC:AddProfile(clean)
+        if ok then
+            CC:RefreshProfileToolbar()
+            CC:EditorMessage("Profile \"" .. clean .. "\" created. Select it in the dropdown to start editing.", "success")
+        else
+            CC:EditorMessage(tostring(opErr or "Profile creation failed."), "error")
+        end
+    end
+    StaticPopup_Show("ELVUICLICKCAST_PROFILE_NAME")
+end
+
+function CC:ShowRenameProfileDialog()
+    local f = self.editorFrame
+    if not f then return end
+    EnsureProfileNameDialog()
+    local active = self:GetActiveProfile()
+    CC.profileDialogPrefill = active
+    CC.profileDialogCallback = function(name)
+        local clean, err = CC:ValidateProfileName(name, active)
+        if not clean then
+            CC:EditorMessage(tostring(err), "error")
+            CC.profileDialogPrefill = tostring(name or "")
+            StaticPopup_Show("ELVUICLICKCAST_PROFILE_NAME")
+            return
+        end
+        CC.profileDialogCallback = nil
+        CC.profileDialogPrefill = nil
+        local ok, opErr = CC:RenameProfile(active, clean)
+        if ok then
+            CC:RefreshProfileToolbar()
+            CC:EditorMessage("Profile renamed to \"" .. clean .. "\".", "success")
+        else
+            CC:EditorMessage(tostring(opErr or "Profile rename failed."), "error")
+        end
+    end
+    StaticPopup_Show("ELVUICLICKCAST_PROFILE_NAME")
+end
+
+function CC:ShowDuplicateProfileDialog()
+    local f = self.editorFrame
+    if not f then return end
+    EnsureProfileNameDialog()
+    local active = self:GetActiveProfile()
+    local n = #self:GetProfiles() + 1
+    local suggested = "Profile " .. tostring(n)
+    while not self:ValidateProfileName(suggested) or strlower(suggested) == strlower(active) do
+        n = n + 1
+        suggested = "Profile " .. tostring(n)
+    end
+    CC.profileDialogPrefill = suggested
+    CC.profileDialogCallback = function(name)
+        local clean, err = self:ValidateProfileName(name)
+        if not clean then
+            self:EditorMessage(tostring(err), "error")
+            CC.profileDialogPrefill = tostring(name or "")
+            StaticPopup_Show("ELVUICLICKCAST_PROFILE_NAME")
+            return
+        end
+        CC.profileDialogCallback = nil
+        CC.profileDialogPrefill = nil
+        local ok, opErr = self:DuplicateActiveProfile(clean)
+        if ok then
+            self:RefreshProfileToolbar()
+            self:EditorMessage("Profile \"" .. clean .. "\" created as a copy of \"" .. active .. "\".", "success")
+        else
+            self:EditorMessage(tostring(opErr or "Profile duplication failed."), "error")
+        end
+    end
+    StaticPopup_Show("ELVUICLICKCAST_PROFILE_NAME")
+end
+
 function CC:ToggleRowDeleted(index)
     local f = self.editorFrame
     if not f or not f.draftBindings or not f.draftBindings[index] then return end
@@ -1114,6 +1322,7 @@ function CC:RefreshEditor()
     self:ApplyEditorMedia()
     self:RefreshEnableButton()
     self:RefreshWorldCastingButton()
+    self:RefreshProfileToolbar()
     f.alwaysSelect:SetValue(f.draftAlwaysTargeting or "disabled")
 
     local bindings = f.draftBindings or {}
@@ -1556,7 +1765,7 @@ function CC:BuildEditor(parent)
     local top = CreateFrame("Frame", nil, frame)
     top:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -2)
     top:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, -2)
-    top:SetHeight(60)
+    top:SetHeight(112)
     SetBox(top, C.panel, C.border)
 
     local runtimeLabel = NewText(top, "Enable", EDITOR_FONT_SIZE, C.muted)
@@ -1582,6 +1791,55 @@ function CC:BuildEditor(parent)
         CC:RefreshEditor()
     end)
     frame.alwaysSelect:SetPoint("TOPLEFT", atLabel, "BOTTOMLEFT", 0, -2)
+
+    -- Profile toolbar (header row 2): active-profile dropdown, profile
+    -- management buttons, the auto talent-group switch and the per-group
+    -- profile assignments.
+    local profileLabel = NewText(top, "Profiles", EDITOR_FONT_SIZE, C.muted)
+    profileLabel:SetPoint("TOPLEFT", top, "TOPLEFT", 8, -58)
+    frame.profileSelect = NewSelect(top, 140, BuildProfileOptions(), CC:GetActiveProfile(), function(value)
+        if value and value ~= CC:GetActiveProfile() then
+            CC:SwitchEditorProfile(value)
+        end
+    end)
+    frame.profileSelect:SetPoint("TOPLEFT", profileLabel, "BOTTOMLEFT", 0, -2)
+
+    frame.newProfileButton = NewButton(top, "New", 46, 25, false)
+    frame.newProfileButton:SetPoint("LEFT", frame.profileSelect, "RIGHT", 6, 0)
+    frame.newProfileButton:SetScript("OnClick", function(_, button) if button == "LeftButton" then CC:ShowNewProfileDialog() end end)
+
+    frame.renameProfileButton = NewButton(top, "Rename", 64, 25, false)
+    frame.renameProfileButton:SetPoint("LEFT", frame.newProfileButton, "RIGHT", 4, 0)
+    frame.renameProfileButton:SetScript("OnClick", function(_, button) if button == "LeftButton" then CC:ShowRenameProfileDialog() end end)
+
+    frame.deleteProfileButton = NewButton(top, "Delete", 60, 25, false)
+    frame.deleteProfileButton:SetPoint("LEFT", frame.renameProfileButton, "RIGHT", 4, 0)
+    frame.deleteProfileButton:SetScript("OnClick", function(_, button) if button == "LeftButton" then CC:DeleteSelectedProfile() end end)
+
+    frame.duplicateProfileButton = NewButton(top, "Duplicate", 74, 25, false)
+    frame.duplicateProfileButton:SetPoint("LEFT", frame.deleteProfileButton, "RIGHT", 4, 0)
+    frame.duplicateProfileButton:SetScript("OnClick", function(_, button) if button == "LeftButton" then CC:ShowDuplicateProfileDialog() end end)
+
+    frame.autoSwitchCheck = NewCheckBox(top, "Auto Switch (Talent Groups)", 175, false, function(value)
+        CC:SetAutoSwitch(value and true or false)
+        CC:RefreshProfileToolbar()
+    end)
+    frame.autoSwitchCheck:SetPoint("LEFT", frame.duplicateProfileButton, "RIGHT", 14, 0)
+
+    local tg1Label = NewText(top, "Talent Group 1 Profile", EDITOR_FONT_SIZE, C.muted)
+    tg1Label:SetPoint("TOPLEFT", top, "TOPLEFT", 604, -58)
+    frame.tg1Select = NewSelect(top, 140, BuildProfileOptions(), "Default", function(value)
+        if value then CC:SetTalentProfile(1, value) end
+    end)
+    frame.tg1Select:SetPoint("TOPLEFT", tg1Label, "BOTTOMLEFT", 0, -2)
+
+    local tg2Label = NewText(top, "Talent Group 2 Profile", EDITOR_FONT_SIZE, C.muted)
+    tg2Label:SetPoint("TOPLEFT", top, "TOPLEFT", 754, -58)
+    frame.tg2Label = tg2Label
+    frame.tg2Select = NewSelect(top, 140, BuildProfileOptions(), "Default", function(value)
+        if value then CC:SetTalentProfile(2, value) end
+    end)
+    frame.tg2Select:SetPoint("TOPLEFT", tg2Label, "BOTTOMLEFT", 0, -2)
 
     frame.topHelp = NewText(top, "World OFF = registered frames only. World ON = Spell, Item, Target, Focus, Assist, Macro, and Custom Macro can work in the world unless Frame Only is ON. Macro targeting stays As Authored. Unit Menu and plain Left/Right are LOCKED Frame Only.", EDITOR_FONT_SIZE, C.muted)
     frame.topHelp:SetPoint("TOPLEFT", top, "TOPLEFT", 470, -7)
