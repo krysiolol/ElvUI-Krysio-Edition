@@ -18,6 +18,7 @@ local UnitIsUnit = UnitIsUnit
 local GetNumSpellTabs = GetNumSpellTabs
 local GetSpellBookItemInfo = GetSpellBookItemInfo
 local GetSpellInfo = GetSpellInfo
+local GetSpellLink = GetSpellLink
 local GetSpellTabInfo = GetSpellTabInfo
 
 local SRT = {}
@@ -29,6 +30,23 @@ local function AddSpell(tbl, spellID)
 	SRT[E.myclass][tbl][#SRT[E.myclass][tbl] + 1] = spellID
 end
 
+-- Resolve a player spellbook slot to its spellID. WotLK private servers often omit
+-- GetSpellBookItemInfo, so prefer it when available and fall back to parsing the
+-- spellbook hyperlink, which every 3.3.5a client provides via GetSpellLink.
+local function GetSlotSpellID(slot)
+	if GetSpellBookItemInfo then
+		local _, spellID = GetSpellBookItemInfo(slot, "spell")
+		if spellID and spellID > 0 then return spellID end
+	end
+	if GetSpellLink then
+		local link = GetSpellLink(slot, "spell")
+		if link then
+			local id = tonumber(link:match("spell:(%d+)"))
+			if id then return id end
+		end
+	end
+end
+
 -- Spellbook scanning helpers for the custom range check anchor.
 -- Return a table of learned spellID -> spell name for every player spell with a max range > 0.
 function UF:GetSpellbookRangeSpells()
@@ -37,8 +55,8 @@ function UF:GetSpellbookRangeSpells()
 	for tab = 1, numTabs do
 		local _, _, offset, numSpells = GetSpellTabInfo(tab)
 		for slot = offset + 1, offset + numSpells do
-			local spellType, spellID = GetSpellBookItemInfo(slot, "spell")
-			if spellType == "spell" and spellID and spellID > 0 then
+			local spellID = GetSlotSpellID(slot)
+			if spellID then
 				local name, _, _, _, _, maxRange = GetSpellInfo(spellID)
 				if name and maxRange and maxRange > 0 then
 					spells[spellID] = name
@@ -58,8 +76,8 @@ local function FindDistanceAnchorSpell(distance)
 	for tab = 1, numTabs do
 		local _, _, offset, numSpells = GetSpellTabInfo(tab)
 		for slot = offset + 1, offset + numSpells do
-			local spellType, spellID = GetSpellBookItemInfo(slot, "spell")
-			if spellType == "spell" and spellID and spellID > 0 then
+			local spellID = GetSlotSpellID(slot)
+			if spellID then
 				local _, _, _, _, _, maxRange = GetSpellInfo(spellID)
 				if maxRange and maxRange > 0 and maxRange <= distance and (not bestRange or maxRange > bestRange) then
 					bestSpell, bestRange = spellID, maxRange
