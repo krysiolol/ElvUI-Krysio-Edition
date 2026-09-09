@@ -886,12 +886,14 @@ function CC:InstallHoverWrapper(frame, enterSnippet, leaveSnippet, hideSnippet, 
     self.header:UnwrapScript(frame, "OnEnter")
     self.header:UnwrapScript(frame, "OnLeave")
     self.header:UnwrapScript(frame, "OnHide")
+    self.header:UnwrapScript(frame, "OnShow")
 
     if enterSnippet and enterSnippet ~= "" then
         if forceClearSnippet and forceClearSnippet ~= "" then self:OwnAttribute(frame, "cc_hover_clear", forceClearSnippet) end
         self.header:WrapScript(frame, "OnEnter", enterSnippet)
         if leaveSnippet and leaveSnippet ~= "" then self.header:WrapScript(frame, "OnLeave", leaveSnippet) end
         if hideSnippet and hideSnippet ~= "" then self.header:WrapScript(frame, "OnHide", hideSnippet) end
+        self.header:WrapScript(frame, "OnShow", "if self:IsUnderMouse() then\n" .. enterSnippet .. "\nend")
     end
 
     if needsMouseWheel then self:OwnMouseWheel(frame, true) end
@@ -1002,8 +1004,10 @@ function CC:InitializeSecureEngine()
                 if ccClear then control:RunFor(danglingButton, ccClear) end
             end
         elseif name == "cc_forceclear" and danglingButton and control then
-            local ccClear = danglingButton:GetAttribute("cc_hover_clear")
-            if ccClear then control:RunFor(danglingButton, ccClear) end
+            if not danglingButton:IsUnderMouse() then
+                local ccClear = danglingButton:GetAttribute("cc_hover_clear")
+                if ccClear then control:RunFor(danglingButton, ccClear) end
+            end
             danglingButton = nil
         end
     ]])
