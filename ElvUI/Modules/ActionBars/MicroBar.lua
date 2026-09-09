@@ -133,8 +133,6 @@ function AB:DiscoverExtraMicroButtons()
 	-- Grimfall: adopt server-added micro buttons (e.g. the backported Collections button,
 	-- which uses a mount icon and belongs by Social / Group Finder) and, if only the journal
 	-- frame exists, build a button that opens it.
-	if self.extraMicroButtonsDone then return end
-
 	local function indexOf(name)
 		for i = 1, #MICRO_BUTTONS do
 			if MICRO_BUTTONS[i] == name then return i end
@@ -150,6 +148,34 @@ function AB:DiscoverExtraMicroButtons()
 			tinsert(MICRO_BUTTONS, name)
 		end
 	end
+
+	-- Grimfall: keep the backported Adventure Guide inside the main row, right after
+	-- the Collections button, instead of wrapping below Spellbook when it overflows
+	-- buttonsPerRow (the generic scan appends it at the end). Runs on every call
+	-- because it is cheap and late-arriving buttons must rejoin the row too.
+	local function placeAdventureGuide()
+		local adventureIdx, collectionsIdx
+		for i = 1, #MICRO_BUTTONS do
+			local n = strlower(MICRO_BUTTONS[i])
+			if not adventureIdx and strfind(n, "adventure", 1, true) then adventureIdx = i end
+			if not collectionsIdx and strfind(n, "collection", 1, true) then collectionsIdx = i end
+		end
+		if adventureIdx and collectionsIdx and adventureIdx ~= collectionsIdx + 1 then
+			local adventureName = tremove(MICRO_BUTTONS, adventureIdx)
+			if adventureIdx < collectionsIdx then collectionsIdx = collectionsIdx - 1 end
+			tinsert(MICRO_BUTTONS, collectionsIdx + 1, adventureName)
+		end
+	end
+
+	-- Grimfall: adopt known server buttons by exact global even after the first scan,
+	-- because other addons create them on their own schedule.
+	for _, knownName in ipairs({ "AdventureGuideMicroButton", "Retail_AdventureGuideMicroButton" }) do
+		if _G[knownName] then addButton(knownName) end
+	end
+	placeAdventureGuide()
+
+	-- The pairs() scan below is the expensive part: run it once and latch.
+	if self.extraMicroButtonsDone then return end
 
 	for name, obj in pairs(_G) do
 		if type(name) == "string" and strfind(name, "MicroButton$") and type(obj) == "table"
@@ -217,6 +243,8 @@ function AB:DiscoverExtraMicroButtons()
 		end)
 		addButton("ElvUI_ClasslessMicroButton", "TalentMicroButton")
 	end
+	placeAdventureGuide()
+
 	if hasCollections then self.extraMicroButtonsDone = true end
 end
 
@@ -256,6 +284,9 @@ function AB:UpdateMicroButtonsParent()
 end
 
 function AB:PLAYER_ENTERING_WORLD()
+	-- Reseed the shown-slot cache: buttons that are hidden right from the start
+	-- (e.g. PVP on this server) must not keep a reserved hole in the bar.
+	AB.everShownMicroButtons = {}
 	self:UpdateMicroButtonsParent()
 end
 
@@ -287,10 +318,12 @@ function AB:UpdateMicroPositionDimensions()
 	local prevButton = ElvUI_Ebonhold_MicroBar
 	local offset = E:Scale(E.PixelMode and 1 or 3)
 	local spacing = E:Scale(offset + self.db.microbar.buttonSpacing)
+	local buttonsPerRow = self.db.microbar.buttonsPerRow
 
 	local buttons = {}
 	for i = 1, #MICRO_BUTTONS do
-		local button = _G[MICRO_BUTTONS[i]]
+		local name = MICRO_BUTTONS[i]
+		local button = _G[name]
 		if button then
 			if button:GetParent() ~= ElvUI_Ebonhold_MicroBar then
 				button.elvuiAllowChanges = true
@@ -306,16 +339,28 @@ function AB:UpdateMicroPositionDimensions()
 				self:HandleMicroButton(button)
 			end
 			
-			-- Stable slots: keep every existing button in its MICRO_BUTTONS slot even
-			-- while Blizzard transiently hides it (e.g. LFD while the group finder
-			-- frame is open), so reflows never move buttons on click.
-			buttons[#buttons + 1] = button
+			-- Stable slots: keep every button that is shown now or was shown before in
+			-- its MICRO_BUTTONS slot even while Blizzard transiently hides it (e.g. LFD
+			-- while the group finder frame is open), so reflows never move buttons on
+			-- click. Buttons never observed shown (e.g. PVP on this server) are collapsed
+			-- instead of leaving a permanent hole between Collections and Group Finder.
+			AB.everShownMicroButtons = AB.everShownMicroButtons or {}
+			if button:IsShown() then
+				AB.everShownMicroButtons[name] = true
+			end
+			if AB.everShownMicroButtons[name] then
+				buttons[#buttons + 1] = button
+			end
 		end
 	end
 
+	-- Grimfall: this fork ships more micro buttons than the stock 12-per-row cap, so
+	-- keep everything on one row unless the user configured an even larger layout.
+	if buttonsPerRow < #buttons then buttonsPerRow = #buttons end
+
 	for i = 1, #buttons do
 		local button = buttons[i]
-		local lastColumnButton = i - self.db.microbar.buttonsPerRow
+		local lastColumnButton = i - buttonsPerRow
 		lastColumnButton = buttons[lastColumnButton]
 
 		button.elvuiAllowChanges = true
@@ -324,7 +369,7 @@ function AB:UpdateMicroPositionDimensions()
 
 		if prevButton == ElvUI_Ebonhold_MicroBar then
 			button:Point("TOPLEFT", prevButton, "TOPLEFT", offset, -offset)
-		elseif (i - 1) % self.db.microbar.buttonsPerRow == 0 then
+		elseif (i - 1) % buttonsPerRow == 0 then
 			button:Point("TOP", lastColumnButton, "BOTTOM", 0, -spacing)
 			numRows = numRows + 1
 		else
@@ -347,7 +392,6 @@ function AB:UpdateMicroPositionDimensions()
 		return
 	end
 
-	local buttonsPerRow = self.db.microbar.buttonsPerRow
 	local numColumns = (numRows > 1) and buttonsPerRow or numButtons
 	local buttonWidth = self.db.microbar.buttonSize
 	local buttonHeight = buttonWidth * 1.4
