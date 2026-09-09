@@ -306,7 +306,10 @@ function AB:UpdateMicroPositionDimensions()
 				self:HandleMicroButton(button)
 			end
 			
-			if button:IsShown() then buttons[#buttons + 1] = button end
+			-- Stable slots: keep every existing button in its MICRO_BUTTONS slot even
+			-- while Blizzard transiently hides it (e.g. LFD while the group finder
+			-- frame is open), so reflows never move buttons on click.
+			buttons[#buttons + 1] = button
 		end
 	end
 
