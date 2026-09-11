@@ -5,6 +5,7 @@ local SpellRange = E.Libs.SpellRange
 --Lua functions
 local pairs, ipairs = pairs, ipairs
 local find = string.find
+local format = string.format
 local tonumber = tonumber
 --WoW API / Variables
 local CheckInteractDistance = CheckInteractDistance
@@ -48,21 +49,32 @@ local function GetSlotSpellID(slot)
 end
 
 -- Spellbook scanning helpers for the custom range check anchor.
--- Return a table of learned spellID -> spell name for every player spell with a max range > 0.
+-- Return a table of spellID -> display text for the highest-rank learned version of every
+-- player spell with a max range > 0. The display text is spell name prefixed with its icon
+-- as an inline texture, so the AceConfig dropdown (and its closed button) show both.
 function UF:GetSpellbookRangeSpells()
-	local spells = {}
+	local best = {} -- name -> highest-rank learned record { id, rank, icon, range }
 	local numTabs = GetNumSpellTabs()
 	for tab = 1, numTabs do
 		local _, _, offset, numSpells = GetSpellTabInfo(tab)
 		for slot = offset + 1, offset + numSpells do
 			local spellID = GetSlotSpellID(slot)
 			if spellID then
-				local name, _, _, _, _, maxRange = GetSpellInfo(spellID)
+				-- 3.3.5a GetSpellInfo returns 9+ values: name@1, rank@2, icon@3, minRange@8, range@9.
+				local name, rank, icon, _, _, _, _, _, maxRange = GetSpellInfo(spellID)
 				if name and maxRange and maxRange > 0 then
-					spells[spellID] = name
+					local prev = best[name]
+					if not prev or (rank or 0) > (prev.rank or 0) or ((rank or 0) == (prev.rank or 0) and maxRange > prev.range) then
+						best[name] = { id = spellID, rank = rank, icon = icon, range = maxRange }
+					end
 				end
 			end
 		end
+	end
+
+	local spells = {}
+	for name, info in pairs(best) do
+		spells[info.id] = format("|T%s:16:16:0:0:64:64:4:60:4:60|t %s", info.icon, name)
 	end
 	return spells
 end
@@ -78,7 +90,7 @@ local function FindDistanceAnchorSpell(distance)
 		for slot = offset + 1, offset + numSpells do
 			local spellID = GetSlotSpellID(slot)
 			if spellID then
-				local _, _, _, _, _, maxRange = GetSpellInfo(spellID)
+				local _, _, _, _, _, _, _, _, maxRange = GetSpellInfo(spellID)
 				if maxRange and maxRange > 0 and maxRange <= distance and (not bestRange or maxRange > bestRange) then
 					bestSpell, bestRange = spellID, maxRange
 				end
