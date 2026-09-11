@@ -48,6 +48,21 @@ local function GetSlotSpellID(slot)
 	end
 end
 
+-- True when the given spellID is currently in the player's spellbook. Validates the
+-- configured anchor so an unlearned spell cannot silently keep its cached anchor alive.
+local function IsSpellLearned(spellID)
+	local numTabs = GetNumSpellTabs()
+	for tab = 1, numTabs do
+		local _, _, offset, numSpells = GetSpellTabInfo(tab)
+		for slot = offset + 1, offset + numSpells do
+			if GetSlotSpellID(slot) == spellID then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 -- Spellbook scanning helpers for the custom range check anchor.
 -- Return a table of spellID -> display text for the highest-rank learned version of every
 -- player spell with a max range > 0. The display text is spell name prefixed with its icon
@@ -101,16 +116,17 @@ local function FindDistanceAnchorSpell(distance)
 end
 
 -- Resolve the per-profile custom range check anchor into a cached spellID on the module.
--- Mode "spell" uses the configured spellID when it is still learned; mode "distance" picks the
--- learned spell whose max range is closest to the configured yards from below. Any other mode,
--- an unlearned/unknown anchor, or a missing config resolves to nil (fall back to class tables).
+-- Mode "spell" uses the configured spellID when it is still learned (validated against the
+-- spellbook, not just the global spell database); mode "distance" picks the learned spell
+-- whose max range is closest to the configured yards from below. Any other mode, an
+-- unlearned/unknown anchor, or a missing config resolves to nil (fall back to class tables).
 function UF:UpdateCustomAnchorSpell()
 	self.customAnchorSpell = nil
 	local cfg = E.db and E.db.unitframe and E.db.unitframe.rangeCheck
 	if not cfg then return end
 
 	if cfg.mode == "spell" then
-		if cfg.spell and cfg.spell > 0 and GetSpellInfo(cfg.spell) then
+		if cfg.spell and cfg.spell > 0 and IsSpellLearned(cfg.spell) then
 			self.customAnchorSpell = cfg.spell
 		end
 	elseif cfg.mode == "distance" then
