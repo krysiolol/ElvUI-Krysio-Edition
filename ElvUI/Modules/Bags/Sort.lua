@@ -697,9 +697,15 @@ function B:RegisterUpdateDelayed()
 
 			bagFrame.registerUpdate = nil
 			shouldUpdateFade = true -- we should refresh the bag search after sorting
-
-			E:StopSpinnerFrame(bagFrame.holderFrame)
 		end
+	end
+
+	-- Clear the sort spinner on every frame, not only the ones that flagged
+	-- registerUpdate. A sort that bails out before flagging its frame would
+	-- otherwise never reach a stop, latching the spinner and the unregistered
+	-- events on until the next /reload.
+	for _, bagFrame in pairs(B.BagFrames) do
+		E:StopSpinnerFrame(bagFrame.holderFrame)
 	end
 
 	if shouldUpdateFade then

@@ -1210,7 +1210,12 @@ function B:ContructContainerFrame(name, isBank)
 			end
 			B:CommandDecorator(B.SortBags, "bank")()
 
-			E:StartSpinnerFrame(f.holderFrame)
+			-- Only spin while a sort is actually running. A bailed-out sort never
+			-- schedules RegisterUpdateDelayed, so starting the spinner
+			-- unconditionally could leave it latched on with nothing to stop it.
+			if B.SortUpdateTimer:IsShown() then
+				E:StartSpinnerFrame(f.holderFrame)
+			end
 		end)
 		if E.db.bags.disableBankSort then
 			f.sortButton:Disable()
@@ -1335,7 +1340,12 @@ function B:ContructContainerFrame(name, isBank)
 			end
 			B:CommandDecorator(B.SortBags, "bags")()
 
-			E:StartSpinnerFrame(f.holderFrame)
+			-- Only spin while a sort is actually running. A bailed-out sort never
+			-- schedules RegisterUpdateDelayed, so starting the spinner
+			-- unconditionally could leave it latched on with nothing to stop it.
+			if B.SortUpdateTimer:IsShown() then
+				E:StartSpinnerFrame(f.holderFrame)
+			end
 		end)
 		if E.db.bags.disableBagSort then
 			f.sortButton:Disable()
