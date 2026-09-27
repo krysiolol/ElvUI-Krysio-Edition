@@ -235,6 +235,7 @@ L["Server: "] = "伺服器: "
 L["Session:"] = "本次登入:"
 L["Setup CVars"] = "設定參數"
 L["Setup Chat"] = "設定對話視窗"
+L["Shift-Click to sort in the opposite direction"] = "Shift+點擊以相反方向排序"
 L["Show BG Texts"] = true
 L["Skip Process"] = "略過"
 L["Sort Bags"] = "整理背包"

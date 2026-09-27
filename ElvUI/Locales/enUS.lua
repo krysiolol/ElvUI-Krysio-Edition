@@ -235,6 +235,7 @@ L["Server: "] = true
 L["Session:"] = true
 L["Setup CVars"] = true
 L["Setup Chat"] = true
+L["Shift-Click to sort in the opposite direction"] = true
 L["Show BG Texts"] = true
 L["Skip Process"] = true
 L["Sort Bags"] = true

@@ -235,6 +235,7 @@ L["Server: "] = "Servidor: "
 L["Session:"] = "Sesión:"
 L["Setup CVars"] = "Configurar CVars"
 L["Setup Chat"] = "Configurar Chat"
+L["Shift-Click to sort in the opposite direction"] = "Clic con Mayús para ordenar en la dirección opuesta"
 L["Show BG Texts"] = true
 L["Skip Process"] = "Saltar Proceso"
 L["Sort Bags"] = "Ordenar Bolsas"

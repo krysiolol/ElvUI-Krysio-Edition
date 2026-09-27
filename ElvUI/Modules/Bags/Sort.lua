@@ -73,6 +73,7 @@ local bagGroups = {}
 local initialOrder = {}
 local itemTypes, itemSubTypes = {}, {}
 local bagSorted, bagLocked = {}, {}
+local sortInvertedOverride
 local bagRole
 local moves = {}
 local targetItems = {}
@@ -638,6 +639,11 @@ function B.Fill(sourceBags, targetBags, reverse, canMove)
 end
 
 function B.SortBags(...)
+	local inverted = sortInvertedOverride
+	if inverted == nil then
+		inverted = B.db.sortInverted
+	end
+
 	for i = 1, select("#", ...) do
 		local bags = select(i, ...)
 		for _, slotNum in ipairs(bags) do
@@ -651,20 +657,30 @@ function B.SortBags(...)
 			if bagType ~= "Normal" then
 				B.Stack(sortedBags, sortedBags, B.IsPartial)
 				B.Stack(bagCache.Normal, sortedBags)
-				B.Fill(bagCache.Normal, sortedBags, B.db.sortInverted)
-				B.Sort(sortedBags, nil, B.db.sortInverted)
+				B.Fill(bagCache.Normal, sortedBags, inverted)
+				B.Sort(sortedBags, nil, inverted)
 				wipe(sortedBags)
 			end
 		end
 
 		if bagCache.Normal then
 			B.Stack(bagCache.Normal, bagCache.Normal, B.IsPartial)
-			B.Sort(bagCache.Normal, nil, B.db.sortInverted)
+			B.Sort(bagCache.Normal, nil, inverted)
 			wipe(bagCache.Normal)
 		end
 		wipe(bagCache)
 		wipe(bagGroups)
 	end
+end
+
+-- Sorts in the opposite direction of the configured default for this one run.
+-- The override is file-local and never written to the profile, so holding a
+-- modifier cannot silently rewrite the user's Sort Inverted option.
+function B.SortBagsFlipped(...)
+	local previous = sortInvertedOverride
+	sortInvertedOverride = not B.db.sortInverted
+	B.SortBags(...)
+	sortInvertedOverride = previous
 end
 
 function B:StartStacking()

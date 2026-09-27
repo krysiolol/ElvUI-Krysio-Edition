@@ -235,6 +235,7 @@ L["Server: "] = "서버:"
 L["Session:"] = "현재 접속:"
 L["Setup CVars"] = "인터페이스 설정 적용"
 L["Setup Chat"] = "대화창 설치"
+L["Shift-Click to sort in the opposite direction"] = "Shift+클릭으로 반대 방향으로 정렬"
 L["Show BG Texts"] = true
 L["Skip Process"] = "건너뛰기"
 L["Sort Bags"] = "가방 정렬"

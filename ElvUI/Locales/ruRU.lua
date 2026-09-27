@@ -235,6 +235,7 @@ L["Server: "] = "На сервере:"
 L["Session:"] = "За сеанс:"
 L["Setup CVars"] = "Сбросить настройки"
 L["Setup Chat"] = "Настроить чат"
+L["Shift-Click to sort in the opposite direction"] = "Shift+клик для сортировки в обратном направлении"
 L["Show BG Texts"] = true
 L["Skip Process"] = "Пропустить установку"
 L["Sort Bags"] = "Сортировать"

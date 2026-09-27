@@ -82,9 +82,10 @@ local function CreateContainerButtons(self, name, isBank)
 		f.sortButtonOld:SetTemplate('Default', true)
 		f.sortButtonOld:SetBackdropColor(unpack(buttonColor))
 		f.sortButtonOld.ttText = L['Sort Bags']
+		f.sortButtonOld.ttText2 = L['Shift-Click to sort in the opposite direction']
 		f.sortButtonOld:SetScript("OnEnter", B.Tooltip_Show)
 		f.sortButtonOld:SetScript("OnLeave", B.Tooltip_Hide)
-		f.sortButtonOld:SetScript('OnClick', function() B:CommandDecorator(B.SortBags, 'bank')(); end)
+		f.sortButtonOld:SetScript('OnClick', function() B:CommandDecorator(IsShiftKeyDown() and B.SortBagsFlipped or B.SortBags, 'bank')(); end)
 
 		--Purchase Bags Button
 		f.purchaseBagButtonOld = CreateFrame('Button', name..'PurchaseButtonOld', f.holderFrame)
@@ -184,9 +185,10 @@ local function CreateContainerButtons(self, name, isBank)
 		f.sortButtonOld:SetTemplate('Default', true)
 		f.sortButtonOld:SetBackdropColor(unpack(buttonColor))
 		f.sortButtonOld.ttText = L['Sort Bags']
+		f.sortButtonOld.ttText2 = L['Shift-Click to sort in the opposite direction']
 		f.sortButtonOld:SetScript("OnEnter", B.Tooltip_Show)
 		f.sortButtonOld:SetScript("OnLeave", B.Tooltip_Hide)
-		f.sortButtonOld:SetScript('OnClick', function() B:CommandDecorator(B.SortBags, 'bags')(); end)
+		f.sortButtonOld:SetScript('OnClick', function() B:CommandDecorator(IsShiftKeyDown() and B.SortBagsFlipped or B.SortBags, 'bags')(); end)
 
 		--Stack/Transfer Button Icon
 		f.stackButton = CreateFrame("Button", name..'StackButton', f.holderFrame);

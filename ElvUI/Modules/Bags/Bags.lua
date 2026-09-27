@@ -1201,6 +1201,7 @@ function B:ContructContainerFrame(name, isBank)
 		f.sortButton:GetDisabledTexture():SetDesaturated(true)
 		f.sortButton:StyleButton(nil, true)
 		f.sortButton.ttText = L["Sort Bags"]
+		f.sortButton.ttText2 = L["Shift-Click to sort in the opposite direction"]
 		f.sortButton:SetScript("OnEnter", self.Tooltip_Show)
 		f.sortButton:SetScript("OnLeave", GameTooltip_Hide)
 		f.sortButton:SetScript("OnClick", function()
@@ -1208,7 +1209,7 @@ function B:ContructContainerFrame(name, isBank)
 			if not f.registerUpdate then
 				B:SortingFadeBags(f, true)
 			end
-			B:CommandDecorator(B.SortBags, "bank")()
+			B:CommandDecorator(IsShiftKeyDown() and B.SortBagsFlipped or B.SortBags, "bank")()
 
 			-- Only spin while a sort is actually running. A bailed-out sort never
 			-- schedules RegisterUpdateDelayed, so starting the spinner
@@ -1331,6 +1332,7 @@ function B:ContructContainerFrame(name, isBank)
 		f.sortButton:GetDisabledTexture():SetDesaturated(true)
 		f.sortButton:StyleButton(nil, true)
 		f.sortButton.ttText = L["Sort Bags"]
+		f.sortButton.ttText2 = L["Shift-Click to sort in the opposite direction"]
 		f.sortButton:SetScript("OnEnter", self.Tooltip_Show)
 		f.sortButton:SetScript("OnLeave", GameTooltip_Hide)
 		f.sortButton:SetScript("OnClick", function()
@@ -1338,7 +1340,7 @@ function B:ContructContainerFrame(name, isBank)
 			if not f.registerUpdate then
 				B:SortingFadeBags(f, true)
 			end
-			B:CommandDecorator(B.SortBags, "bags")()
+			B:CommandDecorator(IsShiftKeyDown() and B.SortBagsFlipped or B.SortBags, "bags")()
 
 			-- Only spin while a sort is actually running. A bailed-out sort never
 			-- schedules RegisterUpdateDelayed, so starting the spinner
