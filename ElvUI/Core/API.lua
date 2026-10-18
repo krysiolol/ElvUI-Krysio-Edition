@@ -111,16 +111,17 @@ end
 function E:CheckRole(event)
 	local talentTree = self:GetTalentSpecInfo()
 	local role
+	local classRole = self.ClassRole[self.myclass]
 
-	if type(self.ClassRole[self.myclass]) == "string" then
-		role = self.ClassRole[self.myclass]
-	elseif talentTree then
+	if type(classRole) == "string" then
+		role = classRole
+	elseif type(classRole) == "table" and talentTree then
 		if self.myclass == "DRUID" and talentTree == 2 then
 			role = select(5, GetTalentInfo(talentTree, 22)) > 0 and "Tank" or "Melee"
 		elseif self.myclass == "DEATHKNIGHT" and talentTree == 2 then
 			role = select(5, GetTalentInfo(talentTree, 25)) > 0 and "Tank" or "Melee"
 		else
-			role = self.ClassRole[self.myclass][talentTree]
+			role = classRole[talentTree]
 		end
 	end
 
@@ -132,11 +133,13 @@ function E:CheckRole(event)
 		self.callbacks:Fire("RoleChanged")
 	end
 
-	if E.myclass == "SHAMAN" then
-		if talentTree == 3 and IsSpellKnown(51886) then
-			self.DispelClasses[self.myclass].Curse = true
-		else
-			self.DispelClasses[self.myclass].Curse = false
+	if self.DispelClasses[self.myclass] then
+		if E.myclass == "SHAMAN" then
+			if talentTree == 3 and IsSpellKnown(51886) then
+				self.DispelClasses[self.myclass].Curse = true
+			else
+				self.DispelClasses[self.myclass].Curse = false
+			end
 		end
 	end
 

@@ -1,2 +1,4 @@
 # Local-only files (not distributed)
 SMOKE_TEST.md
+CoACooldownManager
+.atl/

@@ -88,11 +88,11 @@ function UF:Configure_AuraBars(frame)
 		local attachTo = frame
 
 		if E:CheckClassColor(buffColor.r, buffColor.g, buffColor.b) then
-			buffColor = E.myclass == "PRIEST" and E.PriestColors or (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass] or RAID_CLASS_COLORS[E.myclass])
+			buffColor = (E.myclass == "PRIEST" and E.PriestColors) or (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass]) or RAID_CLASS_COLORS[E.myclass] or buffColor
 		end
 
 		if E:CheckClassColor(debuffColor.r, debuffColor.g, debuffColor.b) then
-			debuffColor = E.myclass == "PRIEST" and E.PriestColors or (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass] or RAID_CLASS_COLORS[E.myclass])
+			debuffColor = (E.myclass == "PRIEST" and E.PriestColors) or (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass]) or RAID_CLASS_COLORS[E.myclass] or debuffColor
 		end
 
 		if db.aurabar.attachTo == "BUFFS" then

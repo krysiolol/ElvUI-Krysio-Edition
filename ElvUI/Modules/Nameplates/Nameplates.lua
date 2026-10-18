@@ -1201,7 +1201,7 @@ function NP:TogleTestFrame(unitType)
 		elseif unitType == "FRIENDLY_PLAYER" then
 			unitFrame.oldHealthBar:SetStatusBarColor(0, 0, 1)
 		else
-			local color = RAID_CLASS_COLORS[E.myclass]
+			local color = (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass]) or RAID_CLASS_COLORS[E.myclass] or {r = 1, g = 1, b = 1}
 			unitFrame.oldHealthBar:SetStatusBarColor(color.r, color.g, color.b)
 		end
 

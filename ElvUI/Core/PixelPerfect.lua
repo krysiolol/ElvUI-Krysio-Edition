@@ -88,6 +88,7 @@ function E:PixelScaleChanged(event, skip)
 end
 
 function E:Scale(x)
+	if not x then return 0 end
 	local mult = E.mult
 
 	return mult * floor(x / mult + 0.5)

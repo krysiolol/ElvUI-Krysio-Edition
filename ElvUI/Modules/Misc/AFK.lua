@@ -310,7 +310,7 @@ function mod:Initialize()
 	self.AFKMode.bottom.faction:SetTexture("Interface\\AddOns\\ElvUI\\media\\textures\\"..E.myfaction.."-Logo")
 	self.AFKMode.bottom.faction:Size(140)
 
-	local classColor = CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass] or RAID_CLASS_COLORS[E.myclass]
+	local classColor = (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[E.myclass]) or RAID_CLASS_COLORS[E.myclass] or {r = 1, g = 1, b = 1}
 	self.AFKMode.bottom.name = self.AFKMode.bottom:CreateFontString(nil, "OVERLAY")
 	self.AFKMode.bottom.name:FontTemplate(nil, 20)
 	self.AFKMode.bottom.name:SetFormattedText("%s - %s", E.myname, E.myrealm)

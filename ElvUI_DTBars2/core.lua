@@ -1,4 +1,4 @@
-﻿local E, L, V, P, G = unpack(ElvUI);
+local E, L, V, P, G = unpack(ElvUI);
 local AddOnName, Engine = ...
 
 local DT = E:GetModule('DataTexts')
@@ -227,7 +227,7 @@ function DT:LoadDataTexts()
 	local enableBGPanel = self.isInPVP and not self.ForceHideBGStats and self.db.battleground
 	local pointIndex, showBGPanel
 
-	if ElvConfigToggle then
+	if ElvConfigToggle and ElvConfigToggle.text then
 		ElvConfigToggle.text:FontTemplate(fontTemplate, self.db.fontSize, self.db.fontOutline)
 	end
 

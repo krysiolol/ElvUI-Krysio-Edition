@@ -1279,7 +1279,9 @@ end
 function E:RefreshModulesDB()
 	-- this function is specifically used to reference the new database
 	-- onto the unitframe module, its useful dont delete! D:
-	twipe(UnitFrames.db) --old ref, dont need so clear it
+	if UnitFrames.db then
+		twipe(UnitFrames.db) --old ref, dont need so clear it
+	end
 	UnitFrames.db = self.db.unitframe --new ref
 end
 
@@ -1306,6 +1308,7 @@ function E:Initialize()
 	self:BuildPrefixValues()
 	self:LoadAPI()
 	self:LoadCommands()
+	self.RBRWidth = 0
 	self:InitializeModules()
 	self:RefreshModulesDB()
 	self:LoadMovers()

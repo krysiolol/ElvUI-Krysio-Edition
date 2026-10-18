@@ -314,6 +314,7 @@ function UF:ClearChildPoints(...)
 end
 
 function UF:UpdateColors()
+	if not self.db then return end
 	local db = self.db.colors
 
 	ElvUF.colors.tapped = E:SetColorTable(ElvUF.colors.tapped, db.tapped)
@@ -468,6 +469,7 @@ end
 function UF:Update_AllFrames()
 	if InCombatLockdown() then self:RegisterEvent("PLAYER_REGEN_ENABLED") return end
 	if E.private.unitframe.enable ~= true then return end
+	if not self.db then return end
 
 	self:UpdateColors()
 	self:Update_FontStrings()
@@ -943,6 +945,7 @@ end
 function UF:CreateAndUpdateUF(unit)
 	assert(unit, "No unit provided to create or update.")
 	if InCombatLockdown() then self:RegisterEvent("PLAYER_REGEN_ENABLED") return end
+	if not self.db or not self.db.units or not self.db.units[unit] then return end
 
 	local frameName = E:StringTitle(unit)
 	frameName = gsub(frameName, "t(arget)", "T%1")
@@ -952,6 +955,7 @@ function UF:CreateAndUpdateUF(unit)
 	end
 
 	self[unit].Update = function()
+		if not self.db or not self.db.units or not self.db.units[unit] then return end
 		UF["Update_"..frameName.."Frame"](self, self[unit], self.db.units[unit])
 	end
 
