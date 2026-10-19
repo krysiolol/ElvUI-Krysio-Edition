@@ -89,7 +89,9 @@ S:AddCallbackForAddon("Blizzard_RaidUI", "Skin_Blizzard_RaidUI", function()
 			else
 				coords = CLASS_ICON_TCOORDS[CLASS_SORT_ORDER[index]]
 				icon:SetTexture("Interface\\WorldStateFrame\\Icons-Classes")
-				icon:SetTexCoord(coords[1] + 0.02, coords[2] - 0.02, coords[3] + 0.02, coords[4] - 0.02)
+				if coords then
+					icon:SetTexCoord(coords[1] + 0.02, coords[2] - 0.02, coords[3] + 0.02, coords[4] - 0.02)
+				end
 			end
 
 			count:FontTemplate(nil, 12, "OUTLINE")

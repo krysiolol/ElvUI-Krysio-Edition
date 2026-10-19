@@ -20,6 +20,7 @@ local BLIP_TEX_COORDS = {
 }
 
 local BLIP_RAID_Y_OFFSET = 0.5
+local DEFAULT_BLIP_COORDS = BLIP_TEX_COORDS["WARRIOR"]
 
 local function OnShowParty(self)
 	local _, class = UnitClass(self.unit)
@@ -27,7 +28,8 @@ local function OnShowParty(self)
 
 	if self.class ~= class then
 		self.class = class
-		self.icon:SetTexCoord(BLIP_TEX_COORDS[class][1], BLIP_TEX_COORDS[class][2], BLIP_TEX_COORDS[class][3], BLIP_TEX_COORDS[class][4])
+		local coords = BLIP_TEX_COORDS[class] or DEFAULT_BLIP_COORDS
+		self.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 	end
 end
 
@@ -43,10 +45,11 @@ local function OnShowRaid(self)
 		self.class = class
 		self.inParty = inParty
 
+		local coords = BLIP_TEX_COORDS[class] or DEFAULT_BLIP_COORDS
 		if inParty then
-			self.icon:SetTexCoord(BLIP_TEX_COORDS[class][1], BLIP_TEX_COORDS[class][2], BLIP_TEX_COORDS[class][3], BLIP_TEX_COORDS[class][4])
+			self.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 		else
-			self.icon:SetTexCoord(BLIP_TEX_COORDS[class][1], BLIP_TEX_COORDS[class][2], BLIP_TEX_COORDS[class][3] + BLIP_RAID_Y_OFFSET, BLIP_TEX_COORDS[class][4] + BLIP_RAID_Y_OFFSET)
+			self.icon:SetTexCoord(coords[1], coords[2], coords[3] + BLIP_RAID_Y_OFFSET, coords[4] + BLIP_RAID_Y_OFFSET)
 		end
 	end
 end
