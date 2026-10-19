@@ -1071,7 +1071,7 @@ function CH:ChatFrame_MessageEventHandler(frame, event, arg1, arg2, arg3, arg4, 
 			frame:AddMessage(CHAT_RESTRICTED, info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
 		elseif chatType == "CHANNEL_LIST" then
 			if channelLength > 0 then
-				frame:AddMessage(format(_G["CHAT_"..chatType.."_GET"]..arg1, tonumber(arg8), arg4), info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
+				frame:AddMessage(format((_G["CHAT_"..chatType.."_GET"] or "")..arg1, tonumber(arg8), arg4), info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
 			else
 				frame:AddMessage(arg1, info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
 			end
@@ -1121,9 +1121,9 @@ function CH:ChatFrame_MessageEventHandler(frame, event, arg1, arg2, arg3, arg4, 
 					--Add Blizzard Icon, this was sent by a Dev
 					pflag = "|TInterface\\ChatFrame\\UI-ChatIcon-Blizz.blp:0:2:0:-3|t "
 				elseif arg6 == "DND" or arg6 == "AFK" then
-					pflag = (pflag or "").._G["CHAT_FLAG_"..arg6]
+					pflag = (pflag or "")..(_G["CHAT_FLAG_"..arg6] or "")
 				else
-					pflag = _G["CHAT_FLAG_"..arg6]
+					pflag = _G["CHAT_FLAG_"..arg6] or ""
 				end
 			else
 				-- Special Chat Icon
@@ -1168,23 +1168,30 @@ function CH:ChatFrame_MessageEventHandler(frame, event, arg1, arg2, arg3, arg4, 
 				playerLink = "|HBNplayer:"..arg2..":"..arg13..":"..arg11..":"..chatGroup..(chatTarget and ":"..chatTarget or "").."|h"
 			end
 
+			local chatGet = _G["CHAT_"..chatType.."_GET"]
+
 			if arg3 ~= "" and arg3 ~= "Universal" and arg3 ~= frame.defaultLanguage then
 				local languageHeader = "["..arg3.."] "
 				if showLink and arg2 ~= "" then
-					body = format(_G["CHAT_"..chatType.."_GET"]..languageHeader..arg1, pflag..playerLink.."["..coloredName.."]".."|h")
+					body = format((chatGet or "%s: ")..languageHeader..arg1, pflag..playerLink.."["..coloredName.."]".."|h")
 				else
-					body = format(_G["CHAT_"..chatType.."_GET"]..languageHeader..arg1, pflag..arg2)
+					body = format((chatGet or "%s: ")..languageHeader..arg1, pflag..arg2)
 				end
 			else
 				if not showLink or strlen(arg2) == 0 then
-					body = format(_G["CHAT_"..chatType.."_GET"]..arg1, pflag..arg2, arg2)
+					if chatGet then
+						body = format(chatGet..arg1, pflag..arg2, arg2)
+					else
+						local ok, res = pcall(format, arg1, pflag..arg2, arg2)
+						body = (ok and res) or arg1
+					end
 				else
 					if chatType == "EMOTE" then
-						body = format(_G["CHAT_"..chatType.."_GET"]..arg1, pflag..playerLink..coloredName.."|h")
+						body = format((chatGet or "%s ")..arg1, pflag..playerLink..coloredName.."|h")
 					elseif chatType == "TEXT_EMOTE" then
 						body = gsub(arg1, arg2, pflag..playerLink..coloredName.."|h", 1)
 					else
-						body = format(_G["CHAT_"..chatType.."_GET"]..arg1, pflag..playerLink.."["..coloredName.."]".."|h")
+						body = format((chatGet or "%s: ")..arg1, pflag..playerLink.."["..coloredName.."]".."|h")
 					end
 				end
 			end
