@@ -281,14 +281,17 @@ function NP:UnitClass(frame, unitType)
 end
 
 function NP:UnitDetailedThreatSituation(frame)
-	if not frame.Threat:IsShown() then
+	if not frame.Threat or not frame.Threat:IsShown() then
 		if frame.UnitType == "ENEMY_NPC" then
-			local r, g = frame.oldName:GetTextColor()
-			return (r > 0.5 and g < 0.5) and 0 or nil
+			if frame.oldName and frame.oldName.GetTextColor then
+				local r, g = frame.oldName:GetTextColor()
+				return (r and g and r > 0.5 and g < 0.5) and 0 or nil
+			end
+			return nil
 		end
 	else
 		local r, g, b = frame.Threat:GetVertexColor()
-		if r > 0 then
+		if r and g and b and r > 0 then
 			if g > 0 then
 				if b > 0 then return 1 end
 				return 2
@@ -299,16 +302,27 @@ function NP:UnitDetailedThreatSituation(frame)
 end
 
 function NP:UnitLevel(frame)
-	local level, boss = frame.oldLevel:GetObjectType() == "FontString" and tonumber(frame.oldLevel:GetText()) or false, frame.BossIcon:IsShown()
+	local level = frame.oldLevel and frame.oldLevel.GetObjectType and frame.oldLevel:GetObjectType() == "FontString" and tonumber(frame.oldLevel:GetText()) or false
+	local boss = frame.BossIcon and frame.BossIcon:IsShown()
 	if boss or not level then
 		return "??", 0.9, 0, 0
 	else
-		return level, frame.oldLevel:GetTextColor()
+		local r, g, b = 1, 1, 1
+		if frame.oldLevel and frame.oldLevel.GetTextColor then
+			r, g, b = frame.oldLevel:GetTextColor()
+		end
+		return level, r, g, b
 	end
 end
 
 function NP:GetUnitInfo(frame)
+	if not frame.oldHealthBar then
+		return 3, "ENEMY_PLAYER"
+	end
 	local r, g, b = frame.oldHealthBar:GetStatusBarColor()
+	if not r or not g or not b then
+		return 3, "ENEMY_PLAYER"
+	end
 	if r < 0.01 then
 		if b < 0.01 and g > 0.99 then
 			return 5, "FRIENDLY_NPC"
@@ -360,7 +374,7 @@ function NP:OnShow(isConfig, dontHideHighlight)
 		NP.VisiblePlates[frame] = 1
 	end
 
-	frame.UnitName = gsub(frame.oldName:GetText() or "", FSPAT, "")
+	frame.UnitName = gsub((frame.oldName and frame.oldName:GetText()) or "", FSPAT, "")
 	local reaction, unitType = NP:GetUnitInfo(frame)
 	local oldUnitType = frame.UnitType
 	frame.UnitType = unitType
@@ -489,7 +503,7 @@ function NP:OnHide(isConfig, dontHideHighlight)
 	frame.ThreatScale = nil
 	frame.ThreatStatus = nil
 
-	if not dontHideHighlight then
+	if not dontHideHighlight and frame.oldHighlight then
 		frame.oldHighlight:Hide()
 	end
 
@@ -623,19 +637,23 @@ function NP:OnCreated(frame)
 	self:QueueObject(CastBarBorder)
 	self:QueueObject(CastBarShield)
 	self:QueueObject(Highlight)
-	BossIcon:SetAlpha(0)
-	EliteIcon:SetAlpha(0)
+	if BossIcon then BossIcon:SetAlpha(0) end
+	if EliteIcon then EliteIcon:SetAlpha(0) end
 
 	unitFrame.oldHealthBar = Health
 	unitFrame.oldCastBar = CastBar
-	unitFrame.oldCastBar.Shield = CastBarShield
-	unitFrame.oldCastBar.Icon = CastBarIcon
+	if CastBar then
+		unitFrame.oldCastBar.Shield = CastBarShield
+		unitFrame.oldCastBar.Icon = CastBarIcon
+	end
 	unitFrame.oldName = Name
 	unitFrame.oldHighlight = Highlight
 	unitFrame.oldLevel = Level
 
 	unitFrame.Threat = Threat
-	RaidIcon:SetParent(unitFrame)
+	if RaidIcon then
+		RaidIcon:SetParent(unitFrame)
+	end
 	unitFrame.RaidIcon = RaidIcon
 
 	unitFrame.BossIcon = BossIcon
@@ -646,7 +664,9 @@ function NP:OnCreated(frame)
 
 	frame:HookScript("OnShow", self.OnShow)
 	frame:HookScript("OnHide", self.OnHide)
-	Health:HookScript("OnValueChanged", self.Update_HealthOnValueChanged)
+	if Health then
+		Health:HookScript("OnValueChanged", self.Update_HealthOnValueChanged)
+	end
 
 	self.CreatedPlates[frame] = true
 	self.VisiblePlates[unitFrame] = 1
@@ -697,7 +717,10 @@ function NP:UnregisterAllEvents(frame)
 end
 
 function NP:QueueObject(object)
-	local objectType = object:GetObjectType()
+	if not object then return end
+	local objectType = object.GetObjectType and object:GetObjectType()
+	if not objectType then return end
+
 	if objectType == "Texture" then
 		object:SetTexture("")
 		object:SetTexCoord(0, 0, 0, 0)
@@ -830,7 +853,7 @@ end
 
 function NP:SetMouseoverFrame(frame)
 	if frame.isTestFrame then return end
-	if frame.oldHighlight:IsShown() then
+	if frame.oldHighlight and frame.oldHighlight:IsShown() then
 		if not frame.isMouseover then
 			frame.isMouseover = true
 

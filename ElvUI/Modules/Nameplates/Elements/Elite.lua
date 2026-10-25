@@ -10,7 +10,8 @@ function NP:Update_Elite(frame)
 
 	local icon = frame.Elite
 	if db.enable then
-		local elite, boss = frame.EliteIcon:IsShown(), frame.BossIcon:IsShown()
+		local elite = frame.EliteIcon and frame.EliteIcon:IsShown()
+		local boss = frame.BossIcon and frame.BossIcon:IsShown()
 
 		if boss then
 			icon:SetTexCoord(0, 0.15, 0.62, 0.94)
