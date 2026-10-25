@@ -1076,32 +1076,42 @@ function CH:ChatFrame_MessageEventHandler(frame, event, arg1, arg2, arg3, arg4, 
 				frame:AddMessage(arg1, info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
 			end
 		elseif chatType == "CHANNEL_NOTICE_USER" then
-			local globalstring = _G["CHAT_"..arg1.."_NOTICE_BN"]
-			if not globalstring then
-				globalstring = _G["CHAT_"..arg1.."_NOTICE"]
+			local globalstring = _G["CHAT_"..arg1.."_NOTICE_BN"] or _G["CHAT_"..arg1.."_NOTICE"]
+			local msg
+			if globalstring then
+				local ok, res
+				if arg5 ~= "" then
+					-- TWO users in this notice (E.G. x kicked y)
+					ok, res = pcall(format, globalstring, arg8, arg4, arg2, arg5)
+				elseif arg1 == "INVITE" then
+					ok, res = pcall(format, globalstring, arg4, arg2)
+				else
+					ok, res = pcall(format, globalstring, arg8, arg4, arg2)
+				end
+				if ok then msg = res end
 			end
-
-			if arg5 ~= "" then
-				-- TWO users in this notice (E.G. x kicked y)
-				frame:AddMessage(format(globalstring, arg8, arg4, arg2, arg5), info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
-			elseif arg1 == "INVITE" then
-				frame:AddMessage(format(globalstring, arg4, arg2), info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
-			else
-				frame:AddMessage(format(globalstring, arg8, arg4, arg2), info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
+			if not msg then
+				msg = (arg4 and arg4 ~= "" and arg4) or arg1 or ""
 			end
+			frame:AddMessage(msg, info.r, info.g, info.b, info.id, false, nil, nil, isHistory, historyTime)
 		elseif chatType == "CHANNEL_NOTICE" then
 			if arg1 == "NOT_IN_LFG" then return end
-			local globalstring = _G["CHAT_"..arg1.."_NOTICE_BN"]
-			if not globalstring then
-				globalstring = _G["CHAT_"..arg1.."_NOTICE"]
-			end
-			if arg10 > 0 then
+			local globalstring = _G["CHAT_"..arg1.."_NOTICE_BN"] or _G["CHAT_"..arg1.."_NOTICE"]
+			if arg10 and arg10 > 0 then
 				arg4 = arg4.." "..arg10
 			end
 
-			local accessID = ChatHistory_GetAccessID(Chat_GetChatCategory(chatType), arg8)
-			local typeID = ChatHistory_GetAccessID(infoType, arg8)
-			frame:AddMessage(format(globalstring, arg8, arg4), info.r, info.g, info.b, info.id, false, accessID, typeID, isHistory, historyTime)
+			local accessID = ChatHistory_GetAccessID and ChatHistory_GetAccessID(Chat_GetChatCategory(chatType), arg8)
+			local typeID = ChatHistory_GetAccessID and ChatHistory_GetAccessID(infoType, arg8)
+			local msg
+			if globalstring then
+				local ok, res = pcall(format, globalstring, arg8, arg4)
+				if ok then msg = res end
+			end
+			if not msg then
+				msg = (arg4 and arg4 ~= "" and arg4) or arg1 or ""
+			end
+			frame:AddMessage(msg, info.r, info.g, info.b, info.id, false, accessID, typeID, isHistory, historyTime)
 		else
 			local body
 
