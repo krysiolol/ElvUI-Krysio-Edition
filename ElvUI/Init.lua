@@ -172,42 +172,44 @@ function AddOn:OnInitialize()
 		self:StaticPopup_Show("TUKUI_ELVUI_INCOMPATIBLE")
 	end
 
-	local GameMenuButton = CreateFrame("Button", "ElvUI_MenuButton", GameMenuFrame, "GameMenuButtonTemplate")
-	GameMenuButton:SetText(self.title)
-	GameMenuButton:SetScript("OnClick", function()
-		AddOn:ToggleOptionsUI()
-		HideUIPanel(GameMenuFrame)
-	end)
-	GameMenuFrame[AddOnName] = GameMenuButton
+	if GameMenuFrame then
+		local GameMenuButton = CreateFrame("Button", "ElvUI_MenuButton", GameMenuFrame, "GameMenuButtonTemplate")
+		GameMenuButton:SetText(self.title)
+		GameMenuButton:SetScript("OnClick", function()
+			AddOn:ToggleOptionsUI()
+			HideUIPanel(GameMenuFrame)
+		end)
+		GameMenuFrame[AddOnName] = GameMenuButton
 
-	GameMenuButton:Size(GameMenuButtonLogout:GetWidth(), GameMenuButtonLogout:GetHeight())
-	GameMenuButtonRatings:HookScript("OnShow", function(self)
-		GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() + self:GetHeight())
-	end)
-	GameMenuButtonRatings:HookScript("OnHide", function(self)
-		GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() - self:GetHeight())
-	end)
+		GameMenuButton:Size(GameMenuButtonLogout:GetWidth(), GameMenuButtonLogout:GetHeight())
+		GameMenuButtonRatings:HookScript("OnShow", function(self)
+			GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() + self:GetHeight())
+		end)
+		GameMenuButtonRatings:HookScript("OnHide", function(self)
+			GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() - self:GetHeight())
+		end)
 
-	GameMenuFrame:HookScript("OnShow", function()
-		if not GameMenuFrame.isElvUI then
-			GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() + GameMenuButtonLogout:GetHeight() + 1)
-			GameMenuFrame.isElvUI = true
-		end
-		local _, relTo = GameMenuButtonLogout:GetPoint()
-		if relTo ~= GameMenuFrame[AddOnName] then
-			-- Guard against circular anchor dependency: relTo may already be anchored
-			-- to ElvUI_MenuButton (e.g. ElvUI_AddonListButton on custom servers).
-			-- pcall catches the "X is dependent on this" engine error gracefully.
-			local ok = pcall(function()
-				GameMenuFrame[AddOnName]:ClearAllPoints()
-				GameMenuFrame[AddOnName]:SetPoint("TOPLEFT", relTo, "BOTTOMLEFT", 0, -1)
-			end)
-			if ok then
-				GameMenuButtonLogout:ClearAllPoints()
-				GameMenuButtonLogout:Point("TOPLEFT", GameMenuFrame[AddOnName], "BOTTOMLEFT", 0, -16)
+		GameMenuFrame:HookScript("OnShow", function()
+			if not GameMenuFrame.isElvUI then
+				GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() + GameMenuButtonLogout:GetHeight() + 1)
+				GameMenuFrame.isElvUI = true
 			end
-		end
-	end)
+			local _, relTo = GameMenuButtonLogout:GetPoint()
+			if relTo ~= GameMenuFrame[AddOnName] then
+				-- Guard against circular anchor dependency: relTo may already be anchored
+				-- to ElvUI_MenuButton (e.g. ElvUI_AddonListButton on custom servers).
+				-- pcall catches the "X is dependent on this" engine error gracefully.
+				local ok = pcall(function()
+					GameMenuFrame[AddOnName]:ClearAllPoints()
+					GameMenuFrame[AddOnName]:SetPoint("TOPLEFT", relTo, "BOTTOMLEFT", 0, -1)
+				end)
+				if ok then
+					GameMenuButtonLogout:ClearAllPoints()
+					GameMenuButtonLogout:Point("TOPLEFT", GameMenuFrame[AddOnName], "BOTTOMLEFT", 0, -16)
+				end
+			end
+		end)
+	end
 
 	self.loadedtime = GetTime()
 end

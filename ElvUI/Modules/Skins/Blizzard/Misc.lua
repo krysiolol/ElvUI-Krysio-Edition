@@ -10,6 +10,8 @@ local unpack = unpack
 S:AddCallback("Skin_Misc", function()
 	if not E.private.skins.blizzard.enable or not E.private.skins.blizzard.misc then return end
 
+	if not GameMenuFrame then return end
+
 	-- ESC/Menu Buttons
 	GameMenuFrame:StripTextures()
 	GameMenuFrame:CreateBackdrop("Transparent")

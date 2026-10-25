@@ -9,6 +9,8 @@ local select = select
 S:AddCallback("Skin_Help", function()
 	if not E.private.skins.blizzard.enable or not E.private.skins.blizzard.help then return end
 
+	if not HelpFrame then return end
+
 	HelpFrame:StripTextures()
 	HelpFrame:CreateBackdrop("Transparent")
 	HelpFrame.backdrop:Point("TOPLEFT", 6, 0)

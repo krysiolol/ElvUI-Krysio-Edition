@@ -43,7 +43,7 @@ function S:StatusBarColorGradient(bar, value, max, backdrop)
 end
 
 function S:HandleButton(button, strip, isDeclineButton, useCreateBackdrop, noSetTemplate)
-	if button.isSkinned then return end
+	if not button or button.isSkinned then return end
 
 	local buttonName = button.GetName and button:GetName()
 	if buttonName then
@@ -106,7 +106,7 @@ function S:HandleButtonHighlight(frame, r, g, b, a)
 end
 
 function S:HandleScrollBar(frame, horizontal)
-	if frame.backdrop then return end
+	if not frame or frame.backdrop then return end
 
 	local parent = frame:GetParent()
 	local frameName = frame:GetName()
@@ -245,7 +245,7 @@ function S:HandleRotateButton(btn)
 end
 
 function S:HandleEditBox(frame)
-	if frame.backdrop then return end
+	if not frame or frame.backdrop then return end
 
 	frame:CreateBackdrop()
 	frame.backdrop:SetFrameLevel(frame:GetFrameLevel())
@@ -305,7 +305,7 @@ function S:HandleStatusBar(frame, color)
 end
 
 function S:HandleCheckBox(frame, noBackdrop, noReplaceTextures, forceSaturation)
-	if frame.isSkinned then return end
+	if not frame or frame.isSkinned then return end
 
 	frame:StripTextures()
 	frame.forceSaturation = forceSaturation
@@ -472,6 +472,7 @@ local handleCloseButtonOnEnter = function(btn) if btn.Texture then btn.Texture:S
 local handleCloseButtonOnLeave = function(btn) if btn.Texture then btn.Texture:SetVertexColor(1, 1, 1) end end
 
 function S:HandleCloseButton(f, point)
+	if not f then return end
 	f:StripTextures()
 
 	if f:GetNormalTexture() then f:SetNormalTexture("") f.SetNormalTexture = E.noop end

@@ -41,7 +41,9 @@ function B:Initialize()
 
 	KBArticle_BeginLoading = E.noop
 	KBSetup_BeginLoading = E.noop
-	KnowledgeBaseFrame_OnEvent(nil, "KNOWLEDGE_BASE_SETUP_LOAD_FAILURE")
+	if KnowledgeBaseFrame_OnEvent then
+		KnowledgeBaseFrame_OnEvent(nil, "KNOWLEDGE_BASE_SETUP_LOAD_FAILURE")
+	end
 
 	if GetLocale() == "deDE" then
 		DAY_ONELETTER_ABBR = "%d d"

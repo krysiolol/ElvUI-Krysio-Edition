@@ -383,61 +383,63 @@ function mod:AddonList()
 		load:SetScript('OnClick', Load_OnClick)
 	end
 
-	local buttonAddons = CreateFrame('Button', 'ElvUI_AddonListButton', GameMenuFrame, 'GameMenuButtonTemplate')
-	buttonAddons:SetText('ADDONS')
-	S:HandleButton(buttonAddons)
+	if GameMenuFrame then
+		local buttonAddons = CreateFrame('Button', 'ElvUI_AddonListButton', GameMenuFrame, 'GameMenuButtonTemplate')
+		buttonAddons:SetText('ADDONS')
+		S:HandleButton(buttonAddons)
 
-	buttonAddons:SetScript('OnClick', function()
-		HideUIPanel(GameMenuFrame)
-		ElvUI_AddonList:Show()
-	end)
+		buttonAddons:SetScript('OnClick', function()
+			HideUIPanel(GameMenuFrame)
+			ElvUI_AddonList:Show()
+		end)
 	
 
-local function UpdateGameMenuHeight()
-	if not GameMenuFrame:IsShown() then return end
+		local function UpdateGameMenuHeight()
+			if not GameMenuFrame:IsShown() then return end
 
-	local top = GameMenuButtonOptions:GetTop()
-	local bottom = GameMenuButtonLogout:GetBottom()
-	if not top or not bottom then return end
+			local top = GameMenuButtonOptions:GetTop()
+			local bottom = GameMenuButtonLogout:GetBottom()
+			if not top or not bottom then return end
 
-	local height = floor(top - bottom + 90)
-	if gameMenuMeasuredHeight ~= height then
-		gameMenuMeasuredHeight = height
-	end
+			local height = floor(top - bottom + 90)
+			if gameMenuMeasuredHeight ~= height then
+				gameMenuMeasuredHeight = height
+			end
 
-	if GameMenuFrame:GetHeight() ~= gameMenuMeasuredHeight then
-		GameMenuFrame:SetHeight(gameMenuMeasuredHeight)
-	end
-end
-
-GameMenuFrame:HookScript('OnShow', function(self)
-	local _, relativeTo = GameMenuButtonLogout:GetPoint()
-
-	if relativeTo ~= buttonAddons then
-		buttonAddons:SetSize(GameMenuButtonMacros:GetWidth(), GameMenuButtonMacros:GetHeight())
-		buttonAddons:ClearAllPoints()
-		buttonAddons:SetPoint('TOP', relativeTo, 'BOTTOM', 0, -1)
-
-		GameMenuButtonLogout:ClearAllPoints()
-		GameMenuButtonLogout:SetPoint('TOP', buttonAddons, 'BOTTOM', 0, -26)
-	end
-
-	gameMenuNeedsResize = true
-end)
-
-GameMenuFrame:HookScript('OnUpdate', function(self)
-	if gameMenuNeedsResize then
-		gameMenuNeedsResize = nil
-		UpdateGameMenuHeight()
-	end
-end)
-	
-	
-	GameMenuButtonLogout:HookScript('OnShow', function(self)
-		if not StaticPopup_Visible('CAMP') and not StaticPopup_Visible('QUIT') then
-			self:Enable()
-		else
-			self:Disable()
+			if GameMenuFrame:GetHeight() ~= gameMenuMeasuredHeight then
+				GameMenuFrame:SetHeight(gameMenuMeasuredHeight)
+			end
 		end
-	end)
+
+		GameMenuFrame:HookScript('OnShow', function(self)
+			local _, relativeTo = GameMenuButtonLogout:GetPoint()
+
+			if relativeTo ~= buttonAddons then
+				buttonAddons:SetSize(GameMenuButtonMacros:GetWidth(), GameMenuButtonMacros:GetHeight())
+				buttonAddons:ClearAllPoints()
+				buttonAddons:SetPoint('TOP', relativeTo, 'BOTTOM', 0, -1)
+
+				GameMenuButtonLogout:ClearAllPoints()
+				GameMenuButtonLogout:SetPoint('TOP', buttonAddons, 'BOTTOM', 0, -26)
+			end
+
+			gameMenuNeedsResize = true
+		end)
+
+		GameMenuFrame:HookScript('OnUpdate', function(self)
+			if gameMenuNeedsResize then
+				gameMenuNeedsResize = nil
+				UpdateGameMenuHeight()
+			end
+		end)
+	
+	
+		GameMenuButtonLogout:HookScript('OnShow', function(self)
+			if not StaticPopup_Visible('CAMP') and not StaticPopup_Visible('QUIT') then
+				self:Enable()
+			else
+				self:Disable()
+			end
+		end)
+	end
 end
